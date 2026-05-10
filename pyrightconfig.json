@@ -1,0 +1,7 @@
+{
+  "include": ["backend"],
+  "exclude": ["**/__pycache__", "**/.venv", "**/venv"],
+  "stubPath": "backend/typings",
+  "pythonVersion": "3.11",
+  "reportMissingModuleSource": "none"
+}

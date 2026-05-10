@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+*.local
+
+# Local model/database caches
+.ollama/
+ollama/
+neo4j_data/
+neo4j_logs/
+hf_cache/
+data

@@ -1,0 +1,20 @@
+neo4j-graphrag[ollama]
+langchain-text-splitters
+llama-index-core
+neo4j
+fastapi
+uvicorn[standard]
+python-dotenv
+langsmith
+python-multipart
+pymupdf
+paddleocr
+# LayoutReader + LayoutLMv3 (reading order + structure inference)
+# On Mac M4: plain `pip install torch` gives the MPS-enabled build automatically.
+torch
+transformers>=4.35.0
+accelerate>=0.21.0
+sentencepiece
+scikit-learn
+sentence-transformers>=2.7.0
+httpx>=0.27.0
