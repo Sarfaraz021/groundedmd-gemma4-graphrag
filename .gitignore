@@ -229,3 +229,14 @@ ollama/
 neo4j_data/
 neo4j_logs/
 hf_cache/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code
+.claude/
+
+# Ablation artifacts
+ablation/__pycache__/
+ablation/results/

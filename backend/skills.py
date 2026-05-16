@@ -21,27 +21,29 @@ class Skill:
 # ---------------------------------------------------------------------------
 # TBI Evidence Interpretation Skill
 #
-# Guides the LLM to interpret TBI clinical evidence following NINDS Common
-# Data Elements (CDE) standards — the shared language for all 7 source PDFs.
+# Guides the LLM to interpret TBI clinical evidence from the 8 peer-reviewed
+# publications in the corpus — covering AI diagnostics, blood biomarkers,
+# outcome prediction, and neurorehabilitation.
 # ---------------------------------------------------------------------------
 
 TBI_EVIDENCE_SKILL = Skill(
     name="tbi_evidence_interpretation",
     description=(
-        "Specialised guidance for interpreting TBI clinical evidence using "
-        "NINDS Common Data Elements (CDE) terminology and classification standards."
+        "Specialised guidance for interpreting TBI clinical evidence from "
+        "peer-reviewed publications on AI diagnostics, biomarkers, outcome "
+        "prediction, conformal prediction, and neurorehabilitation."
     ),
     guidance="""
-## Skill: TBI Evidence Interpretation (NINDS CDE)
+## Skill: TBI Evidence Interpretation
 
 Apply the following standards when formulating your answer:
 
 ### Classification Framework
-- Use only NINDS CDE-defined severity grades: Mild, Moderate, Severe.
+- Use standard TBI severity grades: Mild, Moderate, Severe.
 - Mild TBI (mTBI / concussion): GCS 13–15, LOC < 30 min, PTA < 24 h.
 - Moderate TBI: GCS 9–12, LOC 30 min – 24 h, PTA 1–7 days.
 - Severe TBI: GCS ≤ 8, LOC > 24 h, PTA > 7 days.
-- Cite the specific CDE document when referencing these thresholds.
+- Cite the specific source publication when referencing these thresholds.
 
 ### Biomarker Interpretation
 - Report biomarker values with units and validated threshold ranges.
@@ -55,7 +57,7 @@ Apply the following standards when formulating your answer:
 ### Imaging Evidence
 - Differentiate CT (structural, acute haemorrhage) from MRI
   (diffuse axonal injury, subacute findings).
-- Reference the TBI Imaging Working Group criteria when classifying
+- Reference the imaging criteria from the source publications when classifying
   imaging-based severity.
 - Note that CT-negative does not exclude mTBI — correlate with clinical
   and biomarker data.
