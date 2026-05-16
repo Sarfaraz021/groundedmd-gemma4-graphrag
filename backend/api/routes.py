@@ -670,7 +670,12 @@ async def ingest_paddle_ocr_preview(
         body = await _read_upload(file)
         with open(tmp_path, "wb") as f:
             f.write(body)
-        payload = paddle_ocr_preview_pdf(Path(tmp_path), use_layout_reader=use_layout_reader)
+        import asyncio, functools
+        loop = asyncio.get_event_loop()
+        payload = await loop.run_in_executor(
+            None,
+            functools.partial(paddle_ocr_preview_pdf, Path(tmp_path), use_layout_reader=use_layout_reader),
+        )
         payload["source_filename"] = file.filename
         return JSONResponse(content=payload)
     except HTTPException:

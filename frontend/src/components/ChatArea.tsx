@@ -185,15 +185,18 @@ export default function ChatArea({
     setStreamingText('');
 
     try {
+      console.log('[ChatArea] fetching', `${API_BASE}/chat/stream`);
       const res = await apiFetch(`${API_BASE}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
         body: JSON.stringify({ message: trimmed, top_k: 15, pipeline_id: activePipelineId ?? null }),
         signal,
       });
+      console.log('[ChatArea] response status:', res.status);
 
       if (!res.ok) {
         const errText = await res.text();
+        console.error('[ChatArea] non-ok response:', errText);
         throw new Error(errText || `Request failed (${res.status})`);
       }
 
@@ -264,6 +267,7 @@ export default function ChatArea({
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
       const msg = e instanceof Error ? e.message : 'Network error';
+      console.error('[ChatArea] stream error:', e);
       setStreamError(msg);
       setPhase('idle');
       setStreamingText('');
