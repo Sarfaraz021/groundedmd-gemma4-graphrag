@@ -8,37 +8,40 @@ All prompts used across the GraphRAG pipeline.
 # ---------------------------------------------------------------------------
 
 KG_EXTRACTION_PROMPT = """
-You are a medical researcher tasked with extracting information from TBI
-(Traumatic Brain Injury) publications and structuring it as a property graph
-for clinical Q&A.
+You are a medical researcher extracting entities and relationships from TBI
+(Traumatic Brain Injury) publications for a clinical knowledge graph.
 
-Extract entities (nodes) and their types from the Input text.
-Extract relationships between those nodes.
-Relationship direction: start node → end node.
+Your output MUST be raw JSON only — no markdown, no code fences, no explanation.
 
-Return ONLY valid JSON in this exact format:
+Output format (copy exactly, replacing placeholder values):
 {{
   "nodes": [
-    {{"id": "0", "label": "<node type>", "properties": {{"name": "<entity name>"}}}}
+    {{"id": "0", "label": "Condition", "properties": {{"name": "TBI"}}}},
+    {{"id": "1", "label": "Biomarker", "properties": {{"name": "GFAP"}}}}
   ],
   "relationships": [
     {{
-      "type": "<RELATIONSHIP_TYPE>",
+      "type": "ASSOCIATED_WITH",
       "start_node_id": "0",
       "end_node_id": "1",
-      "properties": {{"details": "<brief description of the relationship>"}}
+      "properties": {{}}
     }}
   ]
 }}
 
-Use ONLY the following nodes and relationships:
+CRITICAL field name rules — use EXACTLY these names, no substitutions:
+- Node fields: "id", "label", "properties"  (NOT "name", "type", "entity")
+- Relationship fields: "type", "start_node_id", "end_node_id", "properties"
+  (NOT "source", "target", "from", "to", "start", "end")
+
+Allowed node labels and relationship types:
 {schema}
 
 Rules:
-- Assign a unique string ID to each node.
-- Reuse node IDs in relationships.
-- Respect source/target types and relationship direction from the schema.
-- Do not return anything outside the JSON.
+- id must be a unique string per node ("0", "1", "2", …)
+- start_node_id and end_node_id must reference existing node ids
+- properties must be a JSON object (use {{}} if empty)
+- Output ONLY the JSON object — nothing before or after it
 
 Examples:
 {examples}
