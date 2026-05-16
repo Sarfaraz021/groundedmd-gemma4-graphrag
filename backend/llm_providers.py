@@ -31,7 +31,7 @@ def get_llm_model_name() -> str:
 def build_llm():
     from neo4j_graphrag.llm import OllamaLLM
     host = OLLAMA_BASE_URL.rstrip("/") if OLLAMA_BASE_URL else None
-    kwargs = {"model_name": OLLAMA_LLM_MODEL, "model_params": {"temperature": 0}}
+    kwargs = {"model_name": OLLAMA_LLM_MODEL, "model_params": {"temperature": 0, "num_ctx": 8192}}
     if host:
         kwargs["host"] = host
     return OllamaLLM(**kwargs)
