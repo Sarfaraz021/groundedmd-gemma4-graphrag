@@ -1,0 +1,31 @@
+# AWS GPU deployment override.
+# Uses Neo4j Aura (set NEO4J_URI in .env) — skips local Neo4j container.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.aws.yml up -d --build
+#
+# Prerequisites on the EC2 instance:
+#   - NVIDIA driver installed (included in Deep Learning Base AMI)
+#   - NVIDIA Container Toolkit installed (see docs/AWS_DEPLOYMENT.md)
+
+services:
+
+  # Disable local Neo4j — using Neo4j Aura instead
+  neo4j:
+    profiles: ["disabled"]
+
+  # Enable NVIDIA GPU for Ollama
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Backend does not depend on local neo4j when using Aura
+  backend:
+    depends_on:
+      ollama:
+        condition: service_healthy
