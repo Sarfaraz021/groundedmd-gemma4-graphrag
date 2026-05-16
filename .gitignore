@@ -229,4 +229,3 @@ ollama/
 neo4j_data/
 neo4j_logs/
 hf_cache/
-data
