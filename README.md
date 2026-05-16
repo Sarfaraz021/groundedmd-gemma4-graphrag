@@ -126,6 +126,6 @@ The corpus is composed of peer-reviewed TBI research publications covering AI di
 
 ## License
 
-Project code is released under Apache-2.0.
+Project code is released under **CC-BY 4.0** (Creative Commons Attribution 4.0 International), as required by the Gemma 4 Good Hackathon competition rules.
 
-The included source documents and model weights remain subject to their original licenses and terms. This repository's Apache-2.0 license applies only to the project code.
+The included source documents (PDF publications) and model weights (Gemma 4, nomic-embed-text, BAAI/bge-reranker-v2-m3) remain subject to their original licenses and terms. The CC-BY 4.0 license applies only to the GroundedMD project source code.
