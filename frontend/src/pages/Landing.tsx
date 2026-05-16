@@ -126,7 +126,7 @@ export default function Landing() {
                 <span className="text-primary cursor-pointer">[1]</span>
                 <br /><br />
                 <span className="text-muted-foreground/60 text-xs">
-                  [1] NINDS TBI Common Data Elements · blood-based-biomarkers-tbi-wg-508c.pdf
+                  [1] Anderson et al. · blood-biomarkers-ich-outcome-moderate-severe-tbi-anderson.pdf
                 </span>
               </span>
             </div>

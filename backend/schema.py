@@ -1,7 +1,8 @@
 """
 TBI-specific knowledge graph schema.
 Node types, relationship types, and valid patterns aligned with
-NINDS TBI Common Data Elements (CDE) terminology.
+peer-reviewed TBI research literature covering AI diagnostics,
+blood biomarkers, outcome prediction, and neurorehabilitation.
 """
 
 # ---------------------------------------------------------------------------

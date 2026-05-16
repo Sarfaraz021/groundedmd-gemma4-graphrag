@@ -2,11 +2,11 @@
 CLI script — ingest TBI PDFs into the Neo4j knowledge graph.
 
 Usage (from backend/):
-    # Ingest all 7 PDFs
+    # Ingest all PDFs
     python scripts/ingest.py
 
     # Ingest a single PDF for testing
-    python scripts/ingest.py --file blood-based-biomarkers-tbi-wg-508c.pdf
+    python scripts/ingest.py --file blood-biomarkers-ich-outcome-moderate-severe-tbi-anderson.pdf
 """
 
 import argparse
@@ -55,7 +55,7 @@ async def main() -> None:
         "--file",
         type=str,
         default=None,
-        help="Ingest a single PDF by filename (e.g. blood-based-biomarkers-tbi-wg-508c.pdf)",
+        help="Ingest a single PDF by filename (e.g. blood-biomarkers-ich-outcome-moderate-severe-tbi-anderson.pdf)",
     )
     args = parser.parse_args()
 

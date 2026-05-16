@@ -12,7 +12,7 @@ This is not a diagnostic device and does not replace clinical judgment. It is a 
 
 ## What It Does
 
-- Answers TBI questions using a Neo4j knowledge graph built from NINDS TBI Common Data Element publications.
+- Answers TBI questions using a Neo4j knowledge graph built from peer-reviewed TBI research publications covering AI diagnostics, biomarkers, outcome prediction, and neurorehabilitation.
 - Runs generation locally with Gemma 4 through Ollama.
 - Runs embeddings locally with `nomic-embed-text` through Ollama.
 - Retrieves evidence with vector search plus graph context.
@@ -111,13 +111,18 @@ Do not commit real `.env` files or credentials.
 
 ## Evidence Corpus
 
-The demo corpus is composed of public NINDS TBI Common Data Element publications, including:
+The corpus is composed of peer-reviewed TBI research publications covering AI diagnostics, blood biomarkers, outcome prediction, and neurorehabilitation:
 
-- `blood-based-biomarkers-tbi-wg-508c.pdf`
-- `clinical-symptoms-days1-14-wg-508c.pdf`
-- `tbi-imaging-wg-508c.pdf`
-- `TBI-classification-nomenclature-workshop-agenda-508c.pdf`
-- `knowlege-to-practice-wg-508c.pdf`
+| File | Paper |
+|------|-------|
+| `ai-for-tbi-imaging-translational-review-furst-2026.pdf` | Artificial Intelligence for TBI Imaging: A Translational Review from Algorithm Development to Clinical Implementation — Frontiers in Neurology, 2026 |
+| `conformal-prediction-ich-detection-gamble-2024.pdf` | Applying Conformal Prediction to a Deep Learning Model for Intracranial Hemorrhage Detection to Improve Trustworthiness — Gamble et al., Radiology: AI, 2024 |
+| `trust-gap-conformal-prediction-ich-ngum-filippi-2025.pdf` | Bridging the Trust Gap: Conformal Prediction for AI-based Intracranial Hemorrhage Detection — Ngum & Filippi, Radiology: AI, 2025 |
+| `blood-biomarkers-ich-outcome-moderate-severe-tbi-anderson.pdf` | Blood-Based Biomarkers for Prediction of Intracranial Hemorrhage and Outcome in Patients with Moderate or Severe TBI — Anderson et al. |
+| `outcome-prediction-severe-tbi-deep-learning-ct.pdf` | Outcome Prediction in Patients with Severe TBI Using Deep Learning from Head CT Scans — Radiology |
+| `data-driven-prognosis-tbi-interpretable-ml-tritt-2023.pdf` | Data-Driven Distillation and Precision Prognosis in TBI with Interpretable Machine Learning — Tritt et al., Scientific Reports, 2023 |
+| `outcome-prediction-tbi-machine-learning-bark-2024.pdf` | Refining Outcome Prediction After TBI with Machine Learning Algorithms — Bark et al., Scientific Reports, 2024 |
+| `tbi-and-ai-neurorehabilitation-review-orenuga-2025.pdf` | Traumatic Brain Injury and Artificial Intelligence: Shaping the Future of Neurorehabilitation — Orenuga et al., Life, 2025 |
 
 ## License
 

@@ -28,39 +28,44 @@ import type {
 // ── Pre-loaded knowledge base ────────────────────────────────────────────────
 const PUBLICATIONS = [
   {
-    title: 'TBI Classification & Nomenclature',
-    file: 'TBI-classification-nomenclature-workshop-agenda-508c.pdf',
-    description: 'NINDS workshop establishing standardized terminology and severity classification for traumatic brain injury — the foundation for consistent clinical documentation.',
+    title: 'AI for TBI Imaging: Translational Review',
+    file: 'ai-for-tbi-imaging-translational-review-furst-2026.pdf',
+    description: 'Comprehensive review of AI algorithms for TBI imaging — from model development to clinical implementation — covering CT, MRI, and deep learning diagnostic tools. Frontiers in Neurology, 2026.',
   },
   {
-    title: 'Blood-Based Biomarkers for TBI',
-    file: 'blood-based-biomarkers-tbi-wg-508c.pdf',
-    description: 'Working group report on serum and plasma biomarkers (GFAP, UCH-L1, S100B, NfL) for diagnosis, prognosis, and monitoring of TBI at the point of care.',
+    title: 'Conformal Prediction for ICH Detection',
+    file: 'conformal-prediction-ich-detection-gamble-2024.pdf',
+    description: 'Applies conformal prediction to a deep learning model for intracranial hemorrhage detection, improving trustworthiness through statistically rigorous uncertainty quantification. Radiology: AI, 2024.',
   },
   {
-    title: 'Clinical Symptoms Days 1–14',
-    file: 'clinical-symptoms-days1-14-wg-508c.pdf',
-    description: 'Systematic review of symptom trajectories in the acute phase — headache, cognitive deficits, sleep disturbance — with recommended assessment instruments.',
+    title: 'Bridging the Trust Gap: Conformal Prediction for ICH',
+    file: 'trust-gap-conformal-prediction-ich-ngum-filippi-2025.pdf',
+    description: 'Commentary on integrating conformal prediction into AI-based intracranial hemorrhage detection workflows to close the clinical trust gap. Radiology: AI, 2025.',
   },
   {
-    title: 'Knowledge to Practice',
-    file: 'knowlege-to-practice-wg-508c.pdf',
-    description: 'Translational framework for moving TBI research findings into frontline clinical workflows, particularly in under-resourced and rural settings.',
+    title: 'Blood Biomarkers for ICH and Outcome in Moderate-Severe TBI',
+    file: 'blood-biomarkers-ich-outcome-moderate-severe-tbi-anderson.pdf',
+    description: 'Investigates blood-based biomarkers — including GFAP, UCH-L1, and S100B — for predicting intracranial hemorrhage and functional outcome in moderate-to-severe TBI patients.',
   },
   {
-    title: 'Psychosocial & Environmental Modifiers',
-    file: 'psychosocial-environmental-modifiers-wg-508c.pdf',
-    description: 'Evidence synthesis on how social determinants — access to care, mental health history, family support — modulate recovery outcomes after TBI.',
+    title: 'Outcome Prediction in Severe TBI Using Deep Learning from CT',
+    file: 'outcome-prediction-severe-tbi-deep-learning-ct.pdf',
+    description: 'Deep learning model trained on head CT scans to predict functional outcomes in patients with severe traumatic brain injury — validated on a multi-centre cohort.',
   },
   {
-    title: 'Retrospective Classification of TBI',
-    file: 'retrospective-classification-tbi-wg-508c.pdf',
-    description: 'Methods for classifying TBI severity and type from existing clinical records, enabling research on populations where prospective data collection was not possible.',
+    title: 'Data-Driven Prognosis in TBI with Interpretable ML',
+    file: 'data-driven-prognosis-tbi-interpretable-ml-tritt-2023.pdf',
+    description: 'Combines data-driven feature distillation with interpretable machine learning to improve precision prognosis in TBI, providing clinically explainable outcome predictions. Scientific Reports, 2023.',
   },
   {
-    title: 'TBI Neuroimaging Biomarkers',
-    file: 'tbi-imaging-wg-508c.pdf',
-    description: 'CT and MRI imaging protocols, lesion classification systems, and quantitative biomarkers for structural TBI assessment — including resource-limited imaging guidance.',
+    title: 'Refining TBI Outcome Prediction with Machine Learning',
+    file: 'outcome-prediction-tbi-machine-learning-bark-2024.pdf',
+    description: 'Benchmarks and refines multiple machine learning algorithms for predicting long-term outcomes after traumatic brain injury using structured clinical and imaging variables. Scientific Reports, 2024.',
+  },
+  {
+    title: 'TBI and AI: Shaping the Future of Neurorehabilitation',
+    file: 'tbi-and-ai-neurorehabilitation-review-orenuga-2025.pdf',
+    description: 'Review of how artificial intelligence is transforming TBI neurorehabilitation — from personalised recovery plans to adaptive therapy tools and outcome monitoring. Life, 2025.',
   },
 ];
 
@@ -306,15 +311,15 @@ export default function Ingest() {
           </div>
           <div className="rounded-sm border border-border bg-card p-6">
             <p className="text-foreground/80 leading-relaxed text-sm">
-              GroundedMD is built on <span className="text-foreground font-medium">7 peer-reviewed NINDS TBI Common Data Elements (CDE)</span> working group publications —
-              the authoritative evidence base published by the National Institute of Neurological Disorders and Stroke.
+              GroundedMD is built on <span className="text-foreground font-medium">8 peer-reviewed TBI research publications</span> covering
+              AI diagnostics, blood biomarkers, outcome prediction, and neurorehabilitation — spanning Frontiers in Neurology, Radiology: AI, Scientific Reports, and Life.
               Every answer the system generates is grounded in these documents: no answer is produced without a traceable citation
               to a specific chunk and graph node. This ensures clinicians in low-connectivity environments receive
               <span className="text-foreground font-medium"> evidence-based guidance</span>, not hallucinated content.
             </p>
             <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5 text-primary" /> Neo4j knowledge graph</div>
-              <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-primary" /> 7 NINDS publications</div>
+              <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-primary" /> 8 peer-reviewed publications</div>
               <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Gemma 4 · 100% offline</div>
             </div>
           </div>
