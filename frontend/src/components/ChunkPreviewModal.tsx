@@ -14,8 +14,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onIngestWithoutOcr: () => void;
   /** useLayoutReader: when true, include LayoutReader reading-order analysis */
-  onRunPaddleOcr: (useLayoutReader: boolean) => void;
-  paddleAvailable: boolean;
+  onRunDoclingOcr: (useLayoutReader: boolean) => void;
+  doclingAvailable: boolean;
   layoutAnalysisAvailable: boolean;
   continuing?: boolean;
 }
@@ -26,8 +26,8 @@ export default function ChunkPreviewModal({
   payload,
   onOpenChange,
   onIngestWithoutOcr,
-  onRunPaddleOcr,
-  paddleAvailable,
+  onRunDoclingOcr,
+  doclingAvailable,
   layoutAnalysisAvailable,
   continuing,
 }: Props) {
@@ -84,12 +84,12 @@ export default function ChunkPreviewModal({
             </div>
           </ScrollArea>
 
-          {/* Paddle OCR options */}
-          {paddleAvailable && (
+          {/* Docling OCR options */}
+          {doclingAvailable && (
             <div className="mt-3 rounded-md border border-border bg-muted/30 px-4 py-3 flex items-start gap-3">
               <ScanText className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-medium text-foreground mb-1">Paddle OCR options</p>
+                <p className="text-[12px] font-medium text-foreground mb-1">Docling OCR options</p>
                 <label className="flex items-center gap-2 text-[11px] text-muted-foreground cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -147,10 +147,10 @@ export default function ChunkPreviewModal({
           <Button
             type="button"
             variant="default"
-            onClick={() => onRunPaddleOcr(useLayoutReader)}
-            disabled={continuing || !paddleAvailable}
+            onClick={() => onRunDoclingOcr(useLayoutReader)}
+            disabled={continuing || !doclingAvailable}
           >
-            Run Paddle OCR
+            Run Docling OCR
           </Button>
         </DialogFooter>
       </DialogContent>

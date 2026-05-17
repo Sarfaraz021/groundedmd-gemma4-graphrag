@@ -434,7 +434,7 @@ export default function ChatArea({
                       name="batch-pipeline-id"
                       value={batchPipelineId}
                       onChange={(e) => setBatchPipelineId(e.target.value)}
-                      placeholder="Pipeline ID (e.g. no_ocr, paddle_ocr)"
+                      placeholder="Pipeline ID (e.g. no_ocr, docling_ocr)"
                       className="flex-1 min-w-0 px-2 py-1 bg-card border border-border text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
                     />
                     <button

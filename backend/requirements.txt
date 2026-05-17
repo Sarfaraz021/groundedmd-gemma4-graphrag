@@ -8,7 +8,6 @@ python-dotenv
 langsmith
 python-multipart
 pymupdf
-paddleocr
 # LayoutReader + LayoutLMv3 (reading order + structure inference)
 # On Mac M4: plain `pip install torch` gives the MPS-enabled build automatically.
 torch

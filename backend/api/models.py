@@ -42,7 +42,8 @@ class HealthResponse(BaseModel):
 class IngestConfigResponse(BaseModel):
     """Feature flags for ingest UI."""
 
-    paddle_ocr_preview: bool
+    paddle_ocr_preview: bool  # kept for backwards compat; mirrors docling_ocr_available
+    docling_ocr_available: bool
     chunk_preview: bool
     layout_analysis: bool  # torch + transformers available for LayoutReader / LayoutLMv3
 

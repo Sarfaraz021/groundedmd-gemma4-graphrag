@@ -99,7 +99,7 @@ export default function Ingest() {
   const [jobs, setJobs] = useState<IngestJob[]>([]);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [paddleAvailable, setPaddleAvailable] = useState(false);
+  const [doclingAvailable, setDoclingAvailable] = useState(false);
   const [layoutAvailable, setLayoutAvailable] = useState(false);
 
   const [chunkPreview, setChunkPreview] = useState<{
@@ -115,7 +115,7 @@ export default function Ingest() {
     fetch(`${API_BASE}/ingest/config`)
       .then(r => r.json())
       .then((x: Record<string, unknown>) => {
-        setPaddleAvailable(Boolean(x.paddle_ocr_preview));
+        setDoclingAvailable(Boolean(x.docling_ocr_available ?? x.paddle_ocr_preview));
         setLayoutAvailable(Boolean(x.layout_analysis));
       })
       .catch(() => {});
@@ -211,7 +211,7 @@ export default function Ingest() {
   }, [chunkPreview, runSse]);
 
   // ── Docling OCR preview ─────────────────────────────────────────────────────
-  const runPaddleOcr = useCallback(async (_useLayoutReader: boolean) => {
+  const runDoclingOcr = useCallback(async (_useLayoutReader: boolean) => {
     if (!chunkPreview) return;
     const { file } = chunkPreview;
     setChunkPreview(null);
@@ -222,7 +222,7 @@ export default function Ingest() {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch(`${API_BASE}/ingest/paddle-ocr-preview`, { method: 'POST', body: fd, signal: controller.signal });
+      const res = await fetch(`${API_BASE}/ingest/docling-ocr-preview`, { method: 'POST', body: fd, signal: controller.signal });
       if (!res.ok) { toast.error(`Docling OCR failed (${res.status})`, { id: toastId }); return; }
       const payload = await res.json() as ParsePreviewPayload;
       toast.dismiss(toastId);
@@ -408,8 +408,8 @@ export default function Ingest() {
         payload={chunkPreview?.payload ?? null}
         onOpenChange={(open) => { if (!open) setChunkPreview(null); }}
         onIngestWithoutOcr={ingestWithoutOcr}
-        onRunPaddleOcr={runPaddleOcr}
-        paddleAvailable={paddleAvailable}
+        onRunDoclingOcr={runDoclingOcr}
+        doclingAvailable={doclingAvailable}
         layoutAnalysisAvailable={layoutAvailable}
       />
 
@@ -418,8 +418,8 @@ export default function Ingest() {
           open={!!parsePreview}
           file={parsePreview?.file ?? null}
           payload={parsePreview?.payload ?? null}
-          title="Paddle OCR preview"
-          groundingSourceLabel="Boxes generated from Paddle OCR output; colors follow chunk types."
+          title="Docling OCR preview"
+          groundingSourceLabel="Boxes generated from Docling OCR output; colors follow chunk types."
           continuing={continuingPreview}
           onOpenChange={(open) => { if (!open) setParsePreview(null); }}
           onContinue={continueFromPreview}

@@ -55,7 +55,7 @@ const Chat = ({ userName = 'Guest' }: Props) => {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
   const [ingestConfig, setIngestConfig] = useState({
-    paddle_ocr_preview: false,
+    docling_ocr_available: false,
     chunk_preview: false,
     layout_analysis: false,
   });
@@ -93,11 +93,12 @@ const Chat = ({ userName = 'Guest' }: Props) => {
       .then((r) => r.json())
       .then((x: {
         paddle_ocr_preview?: boolean;
+        docling_ocr_available?: boolean;
         chunk_preview?: boolean;
         layout_analysis?: boolean;
       }) =>
         setIngestConfig({
-          paddle_ocr_preview: Boolean(x.paddle_ocr_preview),
+          docling_ocr_available: Boolean(x.docling_ocr_available ?? x.paddle_ocr_preview),
           chunk_preview: Boolean(x.chunk_preview),
           layout_analysis: Boolean(x.layout_analysis),
         })
@@ -278,30 +279,30 @@ const Chat = ({ userName = 'Guest' }: Props) => {
     }
   }, [chunkPreview, addIngestJob, runIngestSse, finishIngestJob]);
 
-  const runPaddleOcrPreview = useCallback(async (useLayoutReader: boolean) => {
+  const runDoclingOcrPreview = useCallback(async (useLayoutReader: boolean) => {
     if (!chunkPreview) return;
     const { file, sessionId } = chunkPreview;
     setChunkPreview(null);
 
-    const label = useLayoutReader ? 'Paddle OCR + LayoutReader' : 'Paddle OCR';
-    const toastId = toast.loading(`Running ${label} on "${file.name}"… first run loads models.`);
+    const label = useLayoutReader ? 'Docling OCR + LayoutReader' : 'Docling OCR';
+    const toastId = toast.loading(`Running ${label} on "${file.name}"…`);
     setActiveIngestFileName(file.name);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min for model load
+    const timeout = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 min for large PDFs
 
     try {
       const fd = new FormData();
       fd.append('file', file);
       if (useLayoutReader) fd.append('use_layout_reader', 'true');
-      const res = await apiFetch(`${API_BASE}/ingest/paddle-ocr-preview`, {
+      const res = await apiFetch(`${API_BASE}/ingest/docling-ocr-preview`, {
         method: 'POST',
         body: fd,
         signal: controller.signal,
       });
       if (!res.ok) {
         const t = await res.text();
-        toast.error(t || `Paddle OCR preview failed (${res.status})`, { id: toastId });
+        toast.error(t || `Docling OCR preview failed (${res.status})`, { id: toastId });
         return;
       }
       const payload = (await res.json()) as ParsePreviewPayload;
@@ -310,7 +311,7 @@ const Chat = ({ userName = 'Guest' }: Props) => {
     } catch (e) {
       const msg = e instanceof Error
         ? (e.name === 'AbortError' ? `${label} timed out.` : e.message)
-        : 'Paddle OCR preview failed';
+        : 'Docling OCR preview failed';
       toast.error(msg, { id: toastId });
     } finally {
       clearTimeout(timeout);
@@ -342,7 +343,7 @@ const Chat = ({ userName = 'Guest' }: Props) => {
       fd.append('markdown', new Blob([md], { type: 'text/plain;charset=utf-8' }), 'parsed.md');
       fd.append('source_filename', file.name);
       fd.append('session_id', sessionId);
-      fd.append('ocr_source', 'paddle');
+      fd.append('ocr_source', 'docling');
 
       try {
         const res = await apiFetch(`${API_BASE}/ingest/continue`, { method: 'POST', body: fd });
@@ -506,7 +507,7 @@ const Chat = ({ userName = 'Guest' }: Props) => {
         open={pendingBatch != null}
         fileCount={pendingBatch?.files.length ?? 0}
         pdfCount={pendingBatch?.files.filter(f => f.name.toLowerCase().endsWith('.pdf')).length ?? 0}
-        paddleAvailable={ingestConfig.paddle_ocr_preview}
+        doclingAvailable={ingestConfig.docling_ocr_available}
         onConfirm={(mode) => {
           if (!pendingBatch) return;
           const { files, sessionId, pipelineId } = pendingBatch;
@@ -521,8 +522,8 @@ const Chat = ({ userName = 'Guest' }: Props) => {
           open={parsePreview != null}
           file={parsePreview?.file ?? null}
           payload={parsePreview?.payload ?? null}
-          title="Paddle OCR preview"
-          groundingSourceLabel="Boxes generated from Paddle OCR output; colors follow chunk types."
+          title="Docling OCR preview"
+          groundingSourceLabel="Boxes generated from Docling OCR output; colors follow chunk types."
           onOpenChange={(open) => {
             if (!open) setParsePreview(null);
           }}
@@ -540,8 +541,8 @@ const Chat = ({ userName = 'Guest' }: Props) => {
             if (!open) setChunkPreview(null);
           }}
           onIngestWithoutOcr={() => void ingestWithoutOcrFromChunkPreview()}
-          onRunPaddleOcr={(useLayoutReader) => void runPaddleOcrPreview(useLayoutReader)}
-          paddleAvailable={ingestConfig.paddle_ocr_preview}
+          onRunDoclingOcr={(useLayoutReader) => void runDoclingOcrPreview(useLayoutReader)}
+          doclingAvailable={ingestConfig.docling_ocr_available}
           layoutAnalysisAvailable={ingestConfig.layout_analysis}
         />
       </PreviewErrorBoundary>

@@ -2,7 +2,7 @@
 Ingest all publications from backend/data/publications/ through the full pipeline.
 
 Each PDF is processed sequentially:
-  1. PaddleOCR (PP-StructureV3) — layout + text extraction
+  1. Docling OCR (IBM, EC2 GPU) — AI-powered document understanding
   2. Chunking + embedding (nomic-embed-text)
   3. Entity extraction (Gemma 4)
   4. Schema pruning + Neo4j write
@@ -11,7 +11,7 @@ Each PDF is processed sequentially:
 Usage (from the backend/ directory with venv active):
     python scripts/ingest_all.py
     python scripts/ingest_all.py --publications-dir data/publications
-    python scripts/ingest_all.py --skip-ocr   # skip PaddleOCR, use plain PDF loader
+    python scripts/ingest_all.py --skip-ocr   # skip Docling OCR, use plain PDF loader
 """
 
 import argparse
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip-ocr",
         action="store_true",
-        help="Skip PaddleOCR and use plain PDF text extraction",
+        help="Skip Docling OCR and use plain PDF text extraction",
     )
     args = parser.parse_args()
 

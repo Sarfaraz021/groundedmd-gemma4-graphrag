@@ -14,7 +14,7 @@ interface Props {
   open: boolean;
   fileCount: number;
   pdfCount: number;
-  paddleAvailable: boolean;
+  doclingAvailable: boolean;
   onConfirm: (mode: BatchOcrMode) => void;
   onCancel: () => void;
 }
@@ -36,14 +36,14 @@ export default function BatchOcrChoiceModal({
   open,
   fileCount,
   pdfCount,
-  paddleAvailable,
+  doclingAvailable,
   onConfirm,
   onCancel,
 }: Props) {
   const [selected, setSelected] = useState<BatchOcrMode>('none');
 
   const availableModes = MODES.filter((m) => {
-    if (m.value === 'docling') return paddleAvailable && pdfCount > 0;
+    if (m.value === 'docling') return doclingAvailable && pdfCount > 0;
     return true;
   });
 

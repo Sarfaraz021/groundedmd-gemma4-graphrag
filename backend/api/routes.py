@@ -280,8 +280,10 @@ async def ingest_config() -> IngestConfigResponse:
     except Exception:
         chunk_preview = False
 
+    _docling = docling_ocr_enabled()
     return IngestConfigResponse(
-        paddle_ocr_preview=docling_ocr_enabled(),
+        paddle_ocr_preview=_docling,
+        docling_ocr_available=_docling,
         chunk_preview=chunk_preview,
         layout_analysis=layout_analysis_available(),
     )
@@ -357,7 +359,7 @@ async def ingest_continue_stream(
     request: Request,
     markdown: UploadFile = File(...),
     source_filename: str = Form(...),
-    ocr_source: str = Form("paddle"),
+    ocr_source: str = Form("docling"),
     session_id: str | None = Form(None),
     pipeline_id: str | None = Form(None),
     owner_user_id: str | None = Depends(get_owner_user_id),
@@ -640,7 +642,8 @@ async def ingest_from_url(
     )
 
 
-@router.post("/ingest/paddle-ocr-preview")
+@router.post("/ingest/docling-ocr-preview")
+@router.post("/ingest/paddle-ocr-preview")  # legacy alias
 async def ingest_paddle_ocr_preview(
     request: Request,
     file: UploadFile = File(...),
