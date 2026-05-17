@@ -18,7 +18,7 @@ from neo4j_graphrag.experimental.components.text_splitters.fixed_size_splitter i
 from neo4j_graphrag.experimental.components.types import LexicalGraphConfig
 from neo4j_graphrag.experimental.pipeline.kg_builder import SimpleKGPipeline
 
-from llm_providers import build_embedder, build_llm
+from llm_providers import build_embedder, build_extraction_llm
 from prompts import KG_EXTRACTION_PROMPT
 from schema import NODE_LABELS, PATTERNS, RELATIONSHIP_TYPES
 
@@ -110,7 +110,7 @@ def build_pipeline(driver: neo4j.Driver, *, from_file: bool = True) -> SimpleKGP
 
     LLM + chunk embeddings for the graph pipeline come from ``llm_providers`` (Ollama).
     """
-    llm = build_llm()
+    llm = build_extraction_llm()
     embedder = build_embedder()
 
     file_mode = _simple_kg_pipeline_file_mode_kwarg(from_file)

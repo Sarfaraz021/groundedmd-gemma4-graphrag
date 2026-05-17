@@ -272,7 +272,7 @@ async def chat_stream(
 @router.get("/ingest/config", response_model=IngestConfigResponse)
 async def ingest_config() -> IngestConfigResponse:
     from ingestion.layout_analysis import layout_analysis_available
-    from ingestion.paddle_ocr import paddle_ocr_preview_enabled
+    from ingestion.docling_ocr import docling_ocr_enabled
 
     try:
         import fitz  # noqa: F401
@@ -281,7 +281,7 @@ async def ingest_config() -> IngestConfigResponse:
         chunk_preview = False
 
     return IngestConfigResponse(
-        paddle_ocr_preview=paddle_ocr_preview_enabled(),
+        paddle_ocr_preview=docling_ocr_enabled(),
         chunk_preview=chunk_preview,
         layout_analysis=layout_analysis_available(),
     )
@@ -647,21 +647,17 @@ async def ingest_paddle_ocr_preview(
     use_layout_reader: bool = Form(False),
 ) -> JSONResponse:
     """
-    Run PaddleOCR on a PDF and return OCR markdown + normalized bounding boxes for UI overlay.
-
-    When ``use_layout_reader=true`` is posted, additionally runs
-    hantian/layoutreader to predict reading order (requires torch + transformers).
-    The returned markdown is sorted in reading order and each grounding entry
-    gains a ``reading_rank`` field displayed as an overlay label in the UI.
+    Run Docling OCR on EC2 for a PDF and return OCR markdown for UI preview.
+    Endpoint name kept for frontend compatibility.
     """
-    from ingestion.paddle_ocr import paddle_ocr_preview_pdf
+    from ingestion.docling_ocr import docling_ocr_pdf
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename.")
 
     suffix = Path(file.filename).suffix.lower()
     if suffix != ".pdf":
-        raise HTTPException(status_code=400, detail="Paddle OCR preview supports PDF only.")
+        raise HTTPException(status_code=400, detail="Docling OCR preview supports PDF only.")
 
     fd, tmp_path = tempfile.mkstemp(suffix=suffix)
     os.close(fd)
@@ -670,19 +666,15 @@ async def ingest_paddle_ocr_preview(
         body = await _read_upload(file)
         with open(tmp_path, "wb") as f:
             f.write(body)
-        import asyncio, functools
-        loop = asyncio.get_event_loop()
-        payload = await loop.run_in_executor(
-            None,
-            functools.partial(paddle_ocr_preview_pdf, Path(tmp_path), use_layout_reader=use_layout_reader),
-        )
+        import asyncio
+        payload = await asyncio.to_thread(docling_ocr_pdf, Path(tmp_path))
         payload["source_filename"] = file.filename
         return JSONResponse(content=payload)
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error("Paddle OCR preview error: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Paddle OCR preview failed.") from exc
+        logger.error("Docling OCR preview error: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Docling OCR preview failed.") from exc
     finally:
         try:
             os.unlink(tmp_path)

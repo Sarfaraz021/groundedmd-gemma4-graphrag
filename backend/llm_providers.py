@@ -37,6 +37,16 @@ def build_llm():
     return OllamaLLM(**kwargs)
 
 
+def build_extraction_llm():
+    """LLM for entity extraction — same as build_llm() but with JSON format mode enforced."""
+    from neo4j_graphrag.llm import OllamaLLM
+    host = OLLAMA_BASE_URL.rstrip("/") if OLLAMA_BASE_URL else None
+    kwargs = {"model_name": OLLAMA_LLM_MODEL, "model_params": {"temperature": 0, "num_ctx": 8192, "format": "json"}}
+    if host:
+        kwargs["host"] = host
+    return OllamaLLM(**kwargs)
+
+
 def build_embedder():
     """
     Return neo4j-graphrag's ``OllamaEmbeddings`` (subclass of ``Embedder``).

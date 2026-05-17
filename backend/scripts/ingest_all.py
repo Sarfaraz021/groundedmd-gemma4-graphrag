@@ -30,7 +30,28 @@ load_dotenv(_backend_dir.parent / ".env")
 
 import neo4j
 from ingestion.ingest_stream import ingest_file_stream
-from ingestion.paddle_ocr import paddle_ocr_preview_enabled
+from ingestion.docling_ocr import docling_ocr_enabled, docling_ocr_pdf
+
+
+async def warmup_ollama() -> None:
+    """Send a tiny request to Ollama and wait until the model is fully loaded."""
+    import os, httpx
+    base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+    model = os.environ.get("OLLAMA_LLM_MODEL", "gemma4:e4b")
+    print(f"  Warming up Ollama ({model}) — waiting for model to load into GPU...")
+    for attempt in range(30):
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                r = await client.post(f"{base}/api/generate",
+                    json={"model": model, "prompt": "Hi", "stream": False, "options": {"num_predict": 1}})
+                if r.status_code == 200:
+                    print("  Ollama ready.")
+                    return
+        except Exception:
+            pass
+        print(f"  Still loading... ({attempt + 1}/30)")
+        await asyncio.sleep(10)
+    print("  Warmup timed out — proceeding anyway.")
 
 
 def get_driver() -> neo4j.Driver:
@@ -46,38 +67,29 @@ async def ingest_pdf(driver: neo4j.Driver, pdf_path: Path, skip_ocr: bool) -> bo
     print(f"  Ingesting: {pdf_path.name}")
     print(f"{'='*60}")
 
-    pipeline_id = "paddle_ocr" if (not skip_ocr and paddle_ocr_preview_enabled()) else "no_ocr"
+    pipeline_id = "docling_ocr" if (not skip_ocr and docling_ocr_enabled()) else "no_ocr"
     meta = {"source": pdf_path.name}
 
-    if not skip_ocr and paddle_ocr_preview_enabled():
-        print("  [1/2] Running PaddleOCR (timeout: 600s)...")
-        from ingestion.paddle_ocr import paddle_ocr_preview_pdf
-        import tempfile, os, concurrent.futures
+    if not skip_ocr and docling_ocr_enabled():
+        print("  [1/2] Running Docling OCR on EC2 (timeout: 600s)...")
+        import tempfile, os
         try:
-            loop = asyncio.get_event_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = loop.run_in_executor(pool, paddle_ocr_preview_pdf, pdf_path)
-                payload = await asyncio.wait_for(future, timeout=600)
+            payload = await asyncio.to_thread(docling_ocr_pdf, pdf_path)
             markdown_text = payload.get("markdown", "")
             fd, tmp_md = tempfile.mkstemp(suffix=".md")
             os.close(fd)
             with open(tmp_md, "w", encoding="utf-8") as f:
                 f.write(markdown_text)
-            print(f"  [1/2] PaddleOCR complete — {len(markdown_text):,} chars extracted")
+            print(f"  [1/2] Docling OCR complete — {len(markdown_text):,} chars extracted")
             ingest_path = tmp_md
             cleanup = tmp_md
-        except asyncio.TimeoutError:
-            print("  [1/2] PaddleOCR timed out after 600s — falling back to plain PDF loader")
-            ingest_path = str(pdf_path)
-            cleanup = None
-            pipeline_id = "no_ocr"
         except Exception as e:
-            print(f"  [1/2] PaddleOCR failed ({e}) — falling back to plain PDF loader")
+            print(f"  [1/2] Docling OCR failed ({e}) — falling back to plain PDF loader")
             ingest_path = str(pdf_path)
             cleanup = None
             pipeline_id = "no_ocr"
     else:
-        print("  [1/2] Skipping PaddleOCR — using plain PDF loader")
+        print("  [1/2] Skipping Docling OCR — using plain PDF loader")
         ingest_path = str(pdf_path)
         cleanup = None
 
@@ -122,9 +134,11 @@ async def main(publications_dir: Path, skip_ocr: bool) -> None:
     for p in pdfs:
         print(f"  - {p.name}")
 
-    ocr_available = paddle_ocr_preview_enabled()
-    print(f"\nPaddleOCR available: {ocr_available}")
+    ocr_available = docling_ocr_enabled()
+    print(f"\nDocling OCR (EC2) available: {ocr_available}")
     print(f"Skip OCR flag: {skip_ocr}")
+
+    await warmup_ollama()
 
     driver = get_driver()
     results = {}

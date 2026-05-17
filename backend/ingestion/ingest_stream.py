@@ -497,37 +497,37 @@ def _batch_max_concurrent() -> int:
         return 1
 
 
-async def _batch_paddle_stream(
+async def _batch_docling_stream(
     driver: neo4j.Driver,
     file_path: str,
     meta: dict[str, Any],
     pipeline_id: str | None,
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Run Paddle OCR on a single PDF (no preview), then ingest the markdown."""
-    from ingestion.paddle_ocr import paddle_ocr_preview_pdf  # type: ignore[import]
+    """Run Docling OCR on EC2 for a single PDF, then ingest the markdown."""
+    from ingestion.docling_ocr import docling_ocr_pdf
 
     path = Path(file_path)
     try:
-        logger.info("batch_paddle_ocr: starting path=%s meta_source=%r", path, meta.get("source"))
-        result = await asyncio.to_thread(paddle_ocr_preview_pdf, path, use_layout_reader=False)
+        logger.info("batch_docling_ocr: starting path=%s meta_source=%r", path, meta.get("source"))
+        result = await asyncio.to_thread(docling_ocr_pdf, path)
         markdown: str = result.get("markdown") or ""
     except Exception as exc:
         logger.error(
-            "batch_paddle_ocr: Paddle OCR raised for %r: %s",
+            "batch_docling_ocr: Docling OCR raised for %r: %s",
             meta.get("source"),
             _ingest_exc_summary(exc),
             exc_info=True,
         )
-        yield {"type": "error", "message": f"Paddle OCR failed: {exc}"}
+        yield {"type": "error", "message": f"Docling OCR failed: {exc}"}
         return
 
     if not markdown.strip():
         logger.warning(
-            "batch_paddle_ocr: empty markdown after OCR for %r path=%s",
+            "batch_docling_ocr: empty markdown after OCR for %r path=%s",
             meta.get("source"),
             path,
         )
-        yield {"type": "error", "message": "Paddle OCR produced no text."}
+        yield {"type": "error", "message": "Docling OCR produced no text."}
         return
 
     async for event in ingest_markdown_stream(
@@ -535,7 +535,7 @@ async def _batch_paddle_stream(
         file_path,
         markdown,
         meta,
-        ocr_source="paddle",
+        ocr_source="docling",
         pipeline_id=pipeline_id,
     ):
         yield event
@@ -587,15 +587,15 @@ async def ingest_batch_stream(
                     _pipeline_id,
                     file_path,
                 )
-                if _ocr_mode == "paddle" and file_name.lower().endswith(".pdf"):
-                    async for event in _batch_paddle_stream(
+                if _ocr_mode in ("docling", "paddle") and file_name.lower().endswith(".pdf"):
+                    async for event in _batch_docling_stream(
                         driver, file_path, meta, _pipeline_id
                     ):
                         tagged = dict(event)
                         tagged["file_index"] = idx
                         tagged["file_name"] = file_name
                         await queue.put(tagged)
-                    logger.info("ingest_batch: finished file_index=%d file_name=%r (paddle path)", idx, file_name)
+                    logger.info("ingest_batch: finished file_index=%d file_name=%r (docling path)", idx, file_name)
                     return
                 async for event in _run_with_retry(
                     ingest_file_stream, driver, file_path, meta,
@@ -682,7 +682,7 @@ async def ingest_markdown_stream(
 
     yield {
         "type": "meta",
-        "loader": "Pre-parsed Markdown (Paddle OCR) → in-graph pipeline",
+        "loader": f"Pre-parsed Markdown ({ocr_source} OCR) → in-graph pipeline",
         "markdown_chars": len(markdown),
         "chunk_config": {"size": SEMANTIC_CHUNK_SIZE, "overlap": SEMANTIC_CHUNK_OVERLAP},
         "embedding_model": get_embed_model_name(),
