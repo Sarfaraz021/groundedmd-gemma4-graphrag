@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
-export type BatchOcrMode = 'none' | 'paddle';
+export type BatchOcrMode = 'none' | 'docling';
 
 interface Props {
   open: boolean;
@@ -26,9 +26,9 @@ const MODES: { value: BatchOcrMode; label: string; description: string }[] = [
     description: 'Fast raw text extraction. Best for text-native PDFs.',
   },
   {
-    value: 'paddle',
-    label: 'Paddle OCR',
-    description: 'OCR pass before chunking. Better for scanned or image-heavy PDFs.',
+    value: 'docling',
+    label: 'Docling OCR (EC2)',
+    description: 'AI-powered document understanding — tables, diagrams, and complex layouts. Runs on GPU.',
   },
 ];
 
@@ -43,7 +43,7 @@ export default function BatchOcrChoiceModal({
   const [selected, setSelected] = useState<BatchOcrMode>('none');
 
   const availableModes = MODES.filter((m) => {
-    if (m.value === 'paddle') return paddleAvailable && pdfCount > 0;
+    if (m.value === 'docling') return paddleAvailable && pdfCount > 0;
     return true;
   });
 

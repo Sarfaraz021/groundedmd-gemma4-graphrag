@@ -23,12 +23,22 @@ This is not a diagnostic device and does not replace clinical judgment. It is a 
 
 ```text
 React UI
-  -> FastAPI backend
-  -> Neo4j graph + vector index
-  -> Ollama
-       -> Gemma 4 LLM
-       -> nomic-embed-text embeddings
+  -> FastAPI backend (local)
+       -> Docling OCR service (EC2 GPU)  — document understanding: tables, figures, diagrams
+       -> Neo4j Aura                     — graph + vector index
+       -> Ollama (EC2 GPU)
+            -> Gemma 4 E4B LLM           — entity extraction + answer generation
+            -> nomic-embed-text          — chunk embeddings
 ```
+
+### Ingestion Pipeline
+
+1. **Docling OCR** (IBM, EC2 A10G GPU) — AI-powered document parsing with table, figure, and diagram understanding
+2. **Chunking** — RecursiveCharacterTextSplitter (4000 chars, 600 overlap)
+3. **Embeddings** — nomic-embed-text via Ollama
+4. **Entity extraction** — Gemma 4 E4B extracts biomarkers, conditions, methods into Neo4j nodes
+5. **Graph write** — lexical + semantic graph written to Neo4j Aura
+6. **Entity resolution** — merges duplicate entities across documents
 
 ## Quick Start
 
@@ -94,9 +104,10 @@ ollama pull nomic-embed-text
 The active runtime configuration is:
 
 - `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`
-- `OLLAMA_BASE_URL`
-- `OLLAMA_LLM_MODEL`
-- `OLLAMA_EMBED_MODEL`
+- `OLLAMA_BASE_URL` — Ollama endpoint (EC2: `http://<EC2_IP>:11434`)
+- `OLLAMA_LLM_MODEL` — defaults to `gemma4:e4b`
+- `OLLAMA_EMBED_MODEL` — defaults to `nomic-embed-text`
+- `DOCLING_OCR_URL` — Docling OCR service endpoint (EC2: `http://<EC2_IP>:8001`)
 - `LOCAL_RERANK_ENABLED`
 
 LangSmith tracing is optional for developer debugging and is disabled by default:

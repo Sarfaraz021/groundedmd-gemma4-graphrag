@@ -210,26 +210,25 @@ export default function Ingest() {
     }
   }, [chunkPreview, runSse]);
 
-  // ── Paddle OCR preview ──────────────────────────────────────────────────────
-  const runPaddleOcr = useCallback(async (useLayoutReader: boolean) => {
+  // ── Docling OCR preview ─────────────────────────────────────────────────────
+  const runPaddleOcr = useCallback(async (_useLayoutReader: boolean) => {
     if (!chunkPreview) return;
     const { file } = chunkPreview;
     setChunkPreview(null);
-    const toastId = toast.loading(`Running PaddleOCR on "${file.name}"…`);
+    const toastId = toast.loading(`Running Docling OCR on "${file.name}"…`);
     setBusy(true);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+    const timeout = setTimeout(() => controller.abort(), 10 * 60 * 1000);
     try {
       const fd = new FormData();
       fd.append('file', file);
-      if (useLayoutReader) fd.append('use_layout_reader', 'true');
       const res = await fetch(`${API_BASE}/ingest/paddle-ocr-preview`, { method: 'POST', body: fd, signal: controller.signal });
-      if (!res.ok) { toast.error(`PaddleOCR failed (${res.status})`, { id: toastId }); return; }
+      if (!res.ok) { toast.error(`Docling OCR failed (${res.status})`, { id: toastId }); return; }
       const payload = await res.json() as ParsePreviewPayload;
       toast.dismiss(toastId);
       setParsePreview({ file, payload });
     } catch (e) {
-      toast.error(e instanceof Error && e.name === 'AbortError' ? 'PaddleOCR timed out.' : 'PaddleOCR failed', { id: toastId });
+      toast.error(e instanceof Error && e.name === 'AbortError' ? 'Docling OCR timed out.' : 'Docling OCR failed', { id: toastId });
     } finally {
       clearTimeout(timeout);
       setBusy(false);
@@ -250,7 +249,7 @@ export default function Ingest() {
     fd.append('markdown', new Blob([md], { type: 'text/plain;charset=utf-8' }), 'parsed.md');
     fd.append('source_filename', file.name);
     fd.append('session_id', jobId);
-    fd.append('ocr_source', 'paddle');
+    fd.append('ocr_source', 'docling');
     try {
       const res = await fetch(`${API_BASE}/ingest/continue`, { method: 'POST', body: fd });
       if (!res.ok) {
@@ -311,15 +310,16 @@ export default function Ingest() {
           </div>
           <div className="rounded-sm border border-border bg-card p-6">
             <p className="text-foreground/80 leading-relaxed text-sm">
-              GroundedMD is built on <span className="text-foreground font-medium">8 peer-reviewed TBI research publications</span> covering
+              GroundedMD is built on <span className="text-foreground font-medium">evidence-based clinical TBI research papers</span> covering
               AI diagnostics, blood biomarkers, outcome prediction, and neurorehabilitation — spanning Frontiers in Neurology, Radiology: AI, Scientific Reports, and Life.
               Every answer the system generates is grounded in these documents: no answer is produced without a traceable citation
               to a specific chunk and graph node. This ensures clinicians in low-connectivity environments receive
-              <span className="text-foreground font-medium"> evidence-based guidance</span>, not hallucinated content.
+              <span className="text-foreground font-medium"> evidence-based guidance</span>, not hallucinated content. The corpus can be
+              extended with additional peer-reviewed papers to broaden coverage.
             </p>
             <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5 text-primary" /> Neo4j knowledge graph</div>
-              <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-primary" /> 8 peer-reviewed publications</div>
+              <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-primary" /> Peer-reviewed TBI publications</div>
               <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Gemma 4 · 100% offline</div>
             </div>
           </div>
@@ -329,7 +329,7 @@ export default function Ingest() {
         <section>
           <div className="flex items-center gap-2 mb-3">
             <FileText className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Pre-loaded evidence ({PUBLICATIONS.length} documents)</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Sample evidence corpus</h2>
           </div>
           <div className="space-y-2">
             {PUBLICATIONS.map((pub) => (
@@ -381,7 +381,7 @@ export default function Ingest() {
               <div className="flex flex-col items-center gap-2">
                 <Upload className="w-6 h-6 text-muted-foreground/50" />
                 <p className="text-sm text-foreground/70">Drop a PDF or Markdown file here, or click to browse</p>
-                <p className="text-xs text-muted-foreground/50">PDF files show a chunk preview first — you can run PaddleOCR for scanned documents</p>
+                <p className="text-xs text-muted-foreground/50">PDF files show a chunk preview first — you can run Docling OCR for advanced document understanding</p>
               </div>
             )}
           </div>

@@ -169,7 +169,7 @@ export default function Landing() {
       <section className="max-w-6xl mx-auto px-6 pb-24">
         <div className="rounded-sm border border-primary/20 bg-primary/5 p-12 text-center">
           <h2 className="text-3xl font-bold mb-3 text-foreground">Try it now — no signup required</h2>
-          <p className="text-muted-foreground mb-8 text-sm">Pre-loaded with NINDS TBI publications. Ask anything.</p>
+          <p className="text-muted-foreground mb-8 text-sm">Pre-loaded with evidence-based clinical TBI research papers. Ask anything.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => navigate('/app')}

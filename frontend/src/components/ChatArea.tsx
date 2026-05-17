@@ -315,7 +315,7 @@ export default function ChatArea({
               <h2 className="text-lg font-semibold text-foreground tracking-tight">TBI evidence assistant</h2>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Ask about blood-based biomarkers, AI diagnostics, outcome prediction, or neurorehabilitation. Answers are grounded in
-                ingested peer-reviewed TBI publications with citations.
+                evidence-based clinical TBI research papers with traceable citations.
               </p>
               <div className="flex justify-center gap-6 pt-2">
                 {['GRAPH', 'EVIDENCE', 'CITATIONS'].map((t) => (
