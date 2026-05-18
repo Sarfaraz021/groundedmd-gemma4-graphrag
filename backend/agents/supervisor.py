@@ -18,6 +18,7 @@ import langsmith_env  # noqa: F401 — must be first
 
 import asyncio
 import logging
+import re
 from collections.abc import AsyncGenerator
 
 from langsmith import traceable, trace as ls_trace
@@ -27,8 +28,48 @@ from agents.skills.supervisor_skills import SKILLS, ROUTING_EXAMPLES
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Fast pre-classifier — avoids LLM call for obvious greetings / OOD queries
+# ---------------------------------------------------------------------------
+
+_GREETING_RE = re.compile(
+    r"^\s*("
+    r"hi+|hello+|hey+|howdy|greetings|good\s*(morning|afternoon|evening|day)|"
+    r"what'?s\s*up|sup|yo|hiya|hola|namaste|salut|"
+    r"thank(s| you)+|thx|ty|cheers|great|awesome|cool|ok+|okay|sure|got it|"
+    r"bye+|goodbye|see\s*ya|later|take\s*care|cya|"
+    r"who\s*are\s*you|what\s*are\s*you|what\s*can\s*you\s*do|help\s*me"
+    r")\s*[!?.]*\s*$",
+    re.IGNORECASE,
+)
+
+_NON_TBI_KEYWORDS = re.compile(
+    r"\b("
+    r"kubernetes|docker|python|javascript|react|sql|database|api|server|"
+    r"cook(ing)?|recipe|food|weather|sport|football|cricket|basketball|"
+    r"movie|music|song|artist|politics|election|government|president|"
+    r"finance|stock|crypto|bitcoin|invest|economy|"
+    r"quantum|physics|chemistry|biology(?! of tbi)|math|calculus|"
+    r"cloud|aws|azure|gcp|devops|linux|windows|macos"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _fast_classify(query: str) -> str | None:
+    """
+    Rule-based pre-classifier. Returns a label if confident, else None (→ LLM).
+    Keeps LLM calls only for genuinely ambiguous queries.
+    """
+    q = query.strip()
+    if _GREETING_RE.match(q):
+        return "greeting"
+    if _NON_TBI_KEYWORDS.search(q):
+        return "out_of_domain"
+    return None
+
+
 def _build_routing_system() -> str:
-    caps = "\n".join(f"  - {c}" for c in SKILLS["capabilities"][:3])
     examples = "\n".join(
         f'  user: "{q}" → {{"label": "{label}"}}'
         for q, label in ROUTING_EXAMPLES
@@ -52,12 +93,22 @@ _ROUTING_SYSTEM = _build_routing_system()
 def _classify_query(query: str) -> str:
     """
     Classify query into 'greeting', 'tbi', or 'out_of_domain'.
-    Uses JSON format mode to force structured output — avoids thinking-token cutoff issues.
-    Falls back to 'tbi' on any error so clinical queries are never dropped.
+
+    Strategy:
+    1. Fast regex pre-classifier — catches greetings and obvious OOD instantly
+    2. LLM classifier (JSON mode) — only for ambiguous queries
+    3. Fallback to 'tbi' on any error so clinical queries are never dropped
     """
     import json as _json
     import httpx
 
+    # Step 1: fast rule-based check — no LLM needed
+    fast = _fast_classify(query)
+    if fast:
+        logger.debug("Supervisor (fast): '%s…' → %s", query[:60], fast)
+        return fast
+
+    # Step 2: LLM for ambiguous queries
     try:
         base = (OLLAMA_BASE_URL or "").rstrip("/")
         if not base:
@@ -86,7 +137,7 @@ def _classify_query(query: str) -> str:
         if label not in ("greeting", "tbi", "out_of_domain"):
             label = "tbi"
 
-        logger.debug("Supervisor: '%s…' → %s (raw=%r)", query[:60], label, raw)
+        logger.debug("Supervisor (llm): '%s…' → %s (raw=%r)", query[:60], label, raw)
         return label
 
     except Exception as exc:

@@ -67,8 +67,20 @@ async def run(query: str, mode: str = "greeting") -> AsyncGenerator[dict, None]:
                'out_of_domain' — return instant hardcoded decline, no LLM call
     """
     if mode == "out_of_domain":
+        yield {
+            "type": "step",
+            "phase": "llm",
+            "title": "Out-of-domain response",
+            "detail": "Query is outside TBI scope — returning instant decline",
+        }
         answer = _OUT_OF_DOMAIN_DECLINE
     else:
+        yield {
+            "type": "step",
+            "phase": "llm",
+            "title": "Greeting response",
+            "detail": "Generating warm reply via Gemma 4 26B MoE",
+        }
         # asyncio.to_thread propagates contextvars so @traceable nests correctly
         answer = await asyncio.to_thread(_generate_greeting, query)
 
