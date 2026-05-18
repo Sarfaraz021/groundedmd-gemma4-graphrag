@@ -2,12 +2,16 @@
 Supervisor agent for GroundedMD.
 
 Three-way query classification → subagent routing:
-  greeting      → general_agent (mode='greeting')   — warm social reply
-  tbi           → tbi_retriever_agent               — full GraphRAG pipeline
-  out_of_domain → general_agent (mode='out_of_domain') — polite decline + redirect
+  greeting      → general_agent (mode='greeting')      — warm social reply
+  tbi           → tbi_retriever_agent                  — full GraphRAG pipeline
+  out_of_domain → general_agent (mode='out_of_domain') — instant decline + redirect
 
-LangSmith tracing: routing call recorded as 'supervisor_route'; each subagent
-adds its own spans underneath.
+LangSmith tracing:
+  _classify_query is @traceable(name='supervisor_route') — root span per request.
+  _generate_greeting in general_agent is @traceable(name='general_subagent').
+  search_stream_events in retriever is @traceable(name='graphrag_search') with
+  nested vector_retrieval and llm_generation children.
+  All spans inherit contextvars propagated via asyncio.to_thread.
 """
 
 import langsmith_env  # noqa: F401 — must be first
@@ -16,7 +20,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 
-from langsmith import traceable
+from langsmith import traceable, trace as ls_trace
 
 from llm_providers import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL
 
@@ -84,7 +88,7 @@ def _classify_query(query: str) -> str:
 _ROUTE_DETAILS = {
     "greeting": "General subagent (greeting mode): warm conversational reply, no retrieval",
     "tbi": "TBI retriever subagent: vector search → graph expansion → rerank → generation",
-    "out_of_domain": "General subagent (out-of-domain mode): politely declines and redirects to TBI topics",
+    "out_of_domain": "General subagent (out-of-domain mode): instant decline, redirects to TBI topics",
 }
 
 
@@ -98,41 +102,54 @@ async def supervisor_stream_events(
     """
     Entry point for /chat/stream.
 
-    Emits two routing step events then delegates to the chosen subagent,
-    preserving the full SSE contract (step* → result).
+    `ls_trace("supervisor")` creates the root LangSmith span.  All @traceable
+    calls inside (classify → subagent LLM / retrieval chain) inherit this parent
+    via contextvars, producing the full supervisor → subagent → model hierarchy.
+
+    Important: do NOT call run.end() manually inside the with block — the
+    context manager's __exit__ ends the run automatically when the block exits.
     """
     import agents.general_agent as general_agent
     import agents.tbi_retriever_agent as tbi_retriever_agent
 
-    yield {
-        "type": "step",
-        "phase": "supervisor",
-        "title": "Supervisor routing",
-        "detail": "Classifying query → greeting / TBI retriever / out-of-domain",
-    }
-    await asyncio.sleep(0)
+    label = "tbi"  # safe default — initialised before with block
 
-    label = await asyncio.to_thread(_classify_query, query)
+    with ls_trace(
+        "supervisor",
+        run_type="chain",
+        inputs={"query": query},
+        metadata={"top_k": top_k, "pipeline_id": pipeline_id},
+    ):
+        yield {
+            "type": "step",
+            "phase": "supervisor",
+            "title": "Supervisor routing",
+            "detail": "Classifying query → greeting / TBI retriever / out-of-domain",
+        }
+        await asyncio.sleep(0)
 
-    yield {
-        "type": "step",
-        "phase": "supervisor",
-        "title": f"Routed → {label}",
-        "detail": _ROUTE_DETAILS.get(label, ""),
-    }
-    await asyncio.sleep(0)
+        # @traceable + asyncio.to_thread: contextvars propagated to thread → nests under supervisor
+        label = await asyncio.to_thread(_classify_query, query)
 
-    if label == "tbi":
-        async for event in tbi_retriever_agent.run(
-            graph_rag=graph_rag,
-            query=query,
-            top_k=top_k,
-            owner_user_id=owner_user_id,
-            pipeline_id=pipeline_id,
-        ):
-            yield event
-    else:
-        # greeting or out_of_domain — both handled by general_agent with different modes
-        mode = "greeting" if label == "greeting" else "out_of_domain"
-        async for event in general_agent.run(query, mode=mode):
-            yield event
+        yield {
+            "type": "step",
+            "phase": "supervisor",
+            "title": f"Routed → {label}",
+            "detail": _ROUTE_DETAILS.get(label, ""),
+        }
+        await asyncio.sleep(0)
+
+        if label == "tbi":
+            async for event in tbi_retriever_agent.run(
+                graph_rag=graph_rag,
+                query=query,
+                top_k=top_k,
+                owner_user_id=owner_user_id,
+                pipeline_id=pipeline_id,
+            ):
+                yield event
+        else:
+            mode = "greeting" if label == "greeting" else "out_of_domain"
+            async for event in general_agent.run(query, mode=mode):
+                yield event
+    # ls_trace __exit__ fires here — ends the supervisor span cleanly

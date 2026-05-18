@@ -6,7 +6,7 @@ All models are served by the local Ollama daemon; no external API calls.
 import os
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_LLM_MODEL: str = os.getenv("OLLAMA_LLM_MODEL", "gemma4:e4b")
+OLLAMA_LLM_MODEL: str = os.getenv("OLLAMA_LLM_MODEL", "gemma4:26b")
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
 _EMBED_DIMS: dict[str, int] = {
@@ -31,7 +31,9 @@ def get_llm_model_name() -> str:
 def build_llm():
     from neo4j_graphrag.llm import OllamaLLM
     host = OLLAMA_BASE_URL.rstrip("/") if OLLAMA_BASE_URL else None
-    kwargs = {"model_name": OLLAMA_LLM_MODEL, "model_params": {"temperature": 0, "num_ctx": 8192}}
+    # 26B Q4_K_M: ~17 GB weights on L40S 46 GB → ~29 GB free for KV cache
+    # 32768 ctx uses ~12 GB KV cache → ~29 GB total, well within limits
+    kwargs = {"model_name": OLLAMA_LLM_MODEL, "model_params": {"temperature": 0, "num_ctx": 32768}}
     if host:
         kwargs["host"] = host
     return OllamaLLM(**kwargs)
@@ -41,7 +43,7 @@ def build_extraction_llm():
     """LLM for entity extraction — same as build_llm() but with JSON format mode enforced."""
     from neo4j_graphrag.llm import OllamaLLM
     host = OLLAMA_BASE_URL.rstrip("/") if OLLAMA_BASE_URL else None
-    kwargs = {"model_name": OLLAMA_LLM_MODEL, "model_params": {"temperature": 0, "num_ctx": 8192, "format": "json"}}
+    kwargs = {"model_name": OLLAMA_LLM_MODEL, "model_params": {"temperature": 0, "num_ctx": 32768, "format": "json"}}
     if host:
         kwargs["host"] = host
     return OllamaLLM(**kwargs)

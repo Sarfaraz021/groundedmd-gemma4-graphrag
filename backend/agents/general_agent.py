@@ -3,10 +3,10 @@ General subagent — handles greetings and out-of-domain redirect responses.
 
 Two modes driven by the supervisor's classification:
   greeting      — warm, brief conversational reply (hello, thanks, bye, etc.)
-  out_of_domain — politely declines and steers the user back to TBI research
+  out_of_domain — instant hardcoded decline; does NOT call the LLM
 
-No RAG retrieval is performed in either mode.
-LangSmith tracing: each LLM call is recorded as a 'general_subagent' span.
+LangSmith tracing: the Ollama call is recorded as a 'general_subagent' span
+and nests under the supervisor span via inherited contextvars.
 """
 
 import asyncio
@@ -25,17 +25,16 @@ _GREETING_SYSTEM = (
     "End by inviting them to ask a TBI research question."
 )
 
-_OUT_OF_DOMAIN_SYSTEM = (
-    "You are GroundedMD, a clinical evidence assistant strictly focused on TBI (Traumatic Brain Injury) research. "
-    "The user has asked a question outside your domain. "
-    "Politely explain that you can only answer questions related to TBI — covering topics such as "
-    "biomarkers, AI diagnostics, outcome prediction, neurorehabilitation, imaging, and clinical management. "
-    "Do NOT answer the off-topic question. Keep your reply to two sentences maximum, then invite a TBI question."
+_OUT_OF_DOMAIN_DECLINE = (
+    "Sorry, I can't help with that — I'm specialised exclusively in TBI "
+    "(Traumatic Brain Injury) research. Feel free to ask me about TBI biomarkers, "
+    "AI diagnostics, outcome prediction, neurorehabilitation, or clinical management."
 )
 
 
 @traceable(name="general_subagent", run_type="llm")
-def _generate(query: str, system_prompt: str) -> str:
+def _generate_greeting(query: str) -> str:
+    """LLM call for greeting responses. @traceable nests under the supervisor span."""
     try:
         import httpx
 
@@ -49,7 +48,7 @@ def _generate(query: str, system_prompt: str) -> str:
                 json={
                     "model": OLLAMA_LLM_MODEL,
                     "messages": [
-                        {"role": "system", "content": system_prompt},
+                        {"role": "system", "content": _GREETING_SYSTEM},
                         {"role": "user", "content": query},
                     ],
                     "stream": False,
@@ -58,14 +57,12 @@ def _generate(query: str, system_prompt: str) -> str:
             )
             resp.raise_for_status()
 
-        return ((resp.json().get("message") or {}).get("content") or "").strip()
+        content = ((resp.json().get("message") or {}).get("content") or "").strip()
+        return content or "Hello! Ask me anything about TBI research."
 
     except Exception as exc:
-        logger.warning("General subagent LLM call failed: %s", exc)
-        return (
-            "I'm specialised in TBI clinical evidence. "
-            "Ask me anything about traumatic brain injury research, biomarkers, or outcomes."
-        )
+        logger.warning("General subagent Ollama call failed: %s", exc)
+        return "Hello! I'm your TBI clinical evidence assistant. Ask me anything about TBI research, biomarkers, or outcomes."
 
 
 async def run(query: str, mode: str = "greeting") -> AsyncGenerator[dict, None]:
@@ -74,10 +71,15 @@ async def run(query: str, mode: str = "greeting") -> AsyncGenerator[dict, None]:
 
     Args:
         query: the user's message
-        mode:  'greeting' for social messages, 'out_of_domain' for off-topic questions
+        mode:  'greeting' — call LLM for a warm reply
+               'out_of_domain' — return instant hardcoded decline, no LLM call
     """
-    system_prompt = _GREETING_SYSTEM if mode == "greeting" else _OUT_OF_DOMAIN_SYSTEM
-    answer = await asyncio.to_thread(_generate, query, system_prompt)
+    if mode == "out_of_domain":
+        answer = _OUT_OF_DOMAIN_DECLINE
+    else:
+        # asyncio.to_thread propagates contextvars so @traceable nests correctly
+        answer = await asyncio.to_thread(_generate_greeting, query)
+
     yield {
         "type": "result",
         "answer": answer,

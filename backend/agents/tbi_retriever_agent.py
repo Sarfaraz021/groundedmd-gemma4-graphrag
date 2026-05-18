@@ -5,9 +5,9 @@ Delegates to the full GraphRAG pipeline:
   vector similarity search → Cypher graph expansion → MMR diversity filter
   → cross-encoder rerank → context assembly → Gemma 4 generation
 
-All pipeline steps are streamed as SSE events so the UI can show live progress.
-LangSmith tracing: inherits the nested spans from retrieval.retriever
-  (vector_retrieval, llm_generation, graphrag_search).
+All pipeline steps are streamed as SSE events so the UI shows live progress.
+LangSmith tracing: inherits the supervisor span via contextvars; the nested
+spans (vector_retrieval, llm_generation, graphrag_search) appear as children.
 """
 
 import logging
@@ -24,10 +24,8 @@ async def run(
     pipeline_id: str | None = None,
 ) -> AsyncGenerator[dict, None]:
     """
-    Async generator matching the subagent stream contract.
-
-    Proxies all events from search_stream_events() and tags the final
-    ``result`` event with subagent='retriever-tbi' for observability.
+    Proxy all events from search_stream_events() and tag the final
+    result event with subagent='retriever-tbi'.
     """
     from retrieval.retriever import search_stream_events
 

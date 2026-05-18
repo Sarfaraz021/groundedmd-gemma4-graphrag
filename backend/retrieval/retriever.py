@@ -25,7 +25,7 @@ from neo4j_graphrag.types import RetrieverResultItem
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from llm_providers import build_embedder, build_llm, get_embed_model_name, get_embedding_dimensions
+from llm_providers import OLLAMA_LLM_MODEL, build_embedder, build_llm, get_embed_model_name, get_embedding_dimensions
 from prompts import GRAPH_RETRIEVAL_QUERY, RAG_PROMPT
 from skills import get_skill_context
 
@@ -63,6 +63,7 @@ def _record_formatter(record: neo4j.Record) -> RetrieverResultItem:
     """
     return RetrieverResultItem(content=record.get("info", ""), metadata=None)
 
+@traceable(name="mmr_filter", run_type="chain")
 def _mmr_filter(
     items: list[RetrieverResultItem],
     query: str,
@@ -113,6 +114,7 @@ def _mmr_filter(
     return [items[i] for i in selected]
 
 
+@traceable(name="local_rerank", run_type="chain")
 async def _local_rerank(
     items: list[RetrieverResultItem],
     query: str,
@@ -212,7 +214,7 @@ def list_pipelines(driver: neo4j.Driver) -> list[dict]:
         return [{"id": r["id"], "doc_count": r["doc_count"]} for r in result]
 
 
-@traceable(name="vector_retrieval")
+@traceable(name="vector_retrieval", run_type="retriever")
 def _vector_retrieval(
     graph_rag: GraphRAG,
     query_text: str,
@@ -228,7 +230,7 @@ def _vector_retrieval(
     )
 
 
-@traceable(name="llm_generation")
+@traceable(name="llm_generation", run_type="llm", metadata={"model": OLLAMA_LLM_MODEL})
 def _llm_generation(
     graph_rag: GraphRAG,
     query_text: str,
