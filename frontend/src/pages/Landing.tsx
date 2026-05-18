@@ -17,7 +17,7 @@ const features = [
       </svg>
     ),
     title: 'Local-first deployment',
-    body: 'Gemma 4 and embeddings run through Ollama, with Neo4j and FastAPI deployable on infrastructure you control.',
+    body: 'Gemma 4 26B MoE and embeddings run through Ollama, with Neo4j and FastAPI deployable on infrastructure you control.',
   },
   {
     icon: (
@@ -31,7 +31,7 @@ const features = [
 ];
 
 const stack = [
-  { label: 'Gemma 4 E4B', sub: 'via Ollama · local LLM' },
+  { label: 'Gemma 4 26B MoE', sub: 'via Ollama · 25.8B params · local LLM' },
   { label: 'Neo4j GraphRAG', sub: 'knowledge graph' },
   { label: 'nomic-embed-text', sub: 'local embeddings' },
   { label: 'bge-reranker-v2-m3', sub: 'local cross-encoder' },
@@ -67,7 +67,7 @@ export default function Landing() {
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-6">
           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          Gemma 4 · Ollama · Neo4j GraphRAG
+          Gemma 4 26B MoE · Ollama · Neo4j GraphRAG
         </div>
 
         <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-tight mb-6 text-foreground">

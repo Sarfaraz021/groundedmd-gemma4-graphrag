@@ -1,8 +1,8 @@
 # GroundedMD
 
-Evidence-grounded clinical Q&A for traumatic brain injury, powered by **Gemma 4 via Ollama**, **Neo4j GraphRAG**, local embeddings, and visible source citations.
+Evidence-grounded clinical Q&A for traumatic brain injury, powered by **Gemma 4 26B MoE via Ollama**, **Neo4j GraphRAG**, local embeddings, and visible source citations.
 
-GroundedMD is built for the Google DeepMind / Kaggle Gemma 4 Good Hackathon. The default demo path is self-hosted: React, FastAPI, Neo4j, Ollama, Gemma 4, and `nomic-embed-text`.
+GroundedMD is built for the Google DeepMind / Kaggle Gemma 4 Good Hackathon. The default demo path is self-hosted: React, FastAPI, Neo4j, Ollama, Gemma 4 26B MoE, and `nomic-embed-text`.
 
 ## Why It Matters
 
@@ -26,17 +26,17 @@ React UI
   -> FastAPI backend (local)
        -> Docling OCR service (EC2 GPU)  — document understanding: tables, figures, diagrams
        -> Neo4j Aura                     — graph + vector index
-       -> Ollama (EC2 GPU)
-            -> Gemma 4 E4B LLM           — entity extraction + answer generation
+       -> Ollama (EC2 L40S GPU)
+            -> Gemma 4 26B MoE LLM       — entity extraction + answer generation
             -> nomic-embed-text          — chunk embeddings
 ```
 
 ### Ingestion Pipeline
 
-1. **Docling OCR** (IBM, EC2 A10G GPU) — AI-powered document parsing with table, figure, and diagram understanding
+1. **Docling OCR** (IBM, EC2 L40S GPU) — AI-powered document parsing with table, figure, and diagram understanding
 2. **Chunking** — RecursiveCharacterTextSplitter (4000 chars, 600 overlap)
 3. **Embeddings** — nomic-embed-text via Ollama
-4. **Entity extraction** — Gemma 4 E4B extracts biomarkers, conditions, methods into Neo4j nodes
+4. **Entity extraction** — Gemma 4 26B MoE extracts biomarkers, conditions, methods into Neo4j nodes
 5. **Graph write** — lexical + semantic graph written to Neo4j Aura
 6. **Entity resolution** — merges duplicate entities across documents
 
@@ -95,7 +95,7 @@ npm run dev
 Ollama models:
 
 ```bash
-ollama pull gemma4:e4b
+ollama pull gemma4:26b
 ollama pull nomic-embed-text
 ```
 
@@ -105,7 +105,7 @@ The active runtime configuration is:
 
 - `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`
 - `OLLAMA_BASE_URL` — Ollama endpoint (EC2: `http://<EC2_IP>:11434`)
-- `OLLAMA_LLM_MODEL` — defaults to `gemma4:e4b`
+- `OLLAMA_LLM_MODEL` — defaults to `gemma4:26b` (Gemma 4 26B Mixture-of-Experts, Q4_K_M)
 - `OLLAMA_EMBED_MODEL` — defaults to `nomic-embed-text`
 - `DOCLING_OCR_URL` — Docling OCR service endpoint (EC2: `http://<EC2_IP>:8001`)
 - `LOCAL_RERANK_ENABLED`
@@ -139,4 +139,4 @@ The corpus is composed of peer-reviewed TBI research publications covering AI di
 
 Project code is released under **CC-BY 4.0** (Creative Commons Attribution 4.0 International), as required by the Gemma 4 Good Hackathon competition rules.
 
-The included source documents (PDF publications) and model weights (Gemma 4, nomic-embed-text, BAAI/bge-reranker-v2-m3) remain subject to their original licenses and terms. The CC-BY 4.0 license applies only to the GroundedMD project source code.
+The included source documents (PDF publications) and model weights (Gemma 4 26B MoE, nomic-embed-text, BAAI/bge-reranker-v2-m3) remain subject to their original licenses and terms. The CC-BY 4.0 license applies only to the GroundedMD project source code.

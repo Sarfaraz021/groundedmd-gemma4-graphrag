@@ -423,16 +423,6 @@ async def search_stream_events(
         "context": context,
     }
 
-    # Evaluation — runs after answer is streamed to client so it never delays the response
-    from evaluation import judge_response
-    eval_scores = await judge_response(
-        question=query,
-        answer=answer or "",
-        context_chunks=[item.content or "" for item in items],
-        context_str=context,
-    )
-    yield {"type": "evaluation", **eval_scores}
-
 
 _RE_SOURCE_HEAD = re.compile(r"^\[SOURCE: ([^\]]*)\]\n")
 _RE_CHUNK_HEAD = re.compile(r"^\[CHUNK: ([^\]]+)\]\n")
