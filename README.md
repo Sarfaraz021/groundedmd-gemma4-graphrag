@@ -21,24 +21,116 @@ This is not a diagnostic device and does not replace clinical judgment. It is a 
 
 ## Architecture
 
-```text
-React UI
-  -> FastAPI backend (local)
-       -> Docling OCR service (EC2 GPU)  — document understanding: tables, figures, diagrams
-       -> Neo4j Aura                     — graph + vector index
-       -> Ollama (EC2 L40S GPU)
-            -> Gemma 4 26B MoE LLM       — entity extraction + answer generation
-            -> nomic-embed-text          — chunk embeddings
-```
-
 ### Ingestion Pipeline
 
-1. **Docling OCR** (IBM, EC2 L40S GPU) — AI-powered document parsing with table, figure, and diagram understanding
-2. **Chunking** — RecursiveCharacterTextSplitter (4000 chars, 600 overlap)
-3. **Embeddings** — nomic-embed-text via Ollama
-4. **Entity extraction** — Gemma 4 26B MoE extracts biomarkers, conditions, methods into Neo4j nodes
-5. **Graph write** — lexical + semantic graph written to Neo4j Aura
-6. **Entity resolution** — merges duplicate entities across documents
+Converts raw PDF publications into a searchable knowledge graph:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         INGESTION PIPELINE                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  PDF Publications
+        │
+        ▼
+┌───────────────────┐
+│   Docling OCR     │  IBM AI-powered parsing — tables, figures, diagrams
+│   (EC2 L40S GPU)  │
+└────────┬──────────┘
+         │  Structured Markdown
+         ▼
+┌───────────────────┐
+│   Chunking        │  RecursiveCharacterTextSplitter
+│                   │  4000 chars · 600 overlap
+└────────┬──────────┘
+         │  Text Chunks
+         ├─────────────────────────────────────┐
+         ▼                                     ▼
+┌───────────────────┐               ┌──────────────────────┐
+│   Embeddings      │               │  Entity Extraction   │
+│ nomic-embed-text  │               │  Gemma 4 26B MoE     │
+│  768-D vectors    │               │  (JSON format mode)  │
+└────────┬──────────┘               └──────────┬───────────┘
+         │  Embeddings                         │  Entities + Relations
+         └──────────────┬──────────────────────┘
+                        ▼
+              ┌──────────────────┐
+              │   Neo4j Aura     │
+              │  Graph + Vector  │  Chunk nodes · Entity nodes
+              │     Index        │  FROM_DOCUMENT · FROM_CHUNK rels
+              └────────┬─────────┘
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ Entity Resolution│  Deduplicates entities across documents
+              └──────────────────┘
+```
+
+### Agentic Query System
+
+Every user query passes through a three-layer agentic architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        AGENTIC QUERY SYSTEM                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  User Query
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         SUPERVISOR AGENT                                │
+│                                                                         │
+│  Fast regex pre-classifier  ──→  greeting / out_of_domain (instant)    │
+│        │                                                                │
+│        └──→  LLM classifier (Gemma 4 · JSON mode · few-shot examples)  │
+│                    └──→  greeting / tbi / out_of_domain                 │
+└──────────┬────────────────────────┬────────────────────────┬───────────┘
+           │                        │                        │
+     greeting                      tbi               out_of_domain
+           │                        │                        │
+           ▼                        ▼                        ▼
+┌─────────────────┐   ┌─────────────────────────┐   ┌───────────────────┐
+│  General Agent  │   │   TBI Retriever Agent   │   │  General Agent    │
+│                 │   │                         │   │                   │
+│ Gemma 4 · warm  │   │  ┌─────────────────┐   │   │ Hardcoded polite  │
+│ greeting reply  │   │  │ Vector Search   │   │   │ decline — no LLM  │
+└─────────────────┘   │  │ nomic-embed-text│   │   └───────────────────┘
+                       │  │ cosine · top-K  │   │
+                       │  └────────┬────────┘   │
+                       │           │             │
+                       │  ┌────────▼────────┐   │
+                       │  │ Graph Expansion │   │
+                       │  │ Cypher traversal│   │
+                       │  │ entity + doc    │   │
+                       │  └────────┬────────┘   │
+                       │           │             │
+                       │  ┌────────▼────────┐   │
+                       │  │  MMR Filter     │   │
+                       │  │ λ=0.5 diversity │   │
+                       │  └────────┬────────┘   │
+                       │           │             │
+                       │  ┌────────▼────────┐   │
+                       │  │ Cross-Encoder   │   │
+                       │  │ Rerank          │   │
+                       │  │ BAAI/bge-v2-m3  │   │
+                       │  └────────┬────────┘   │
+                       │           │             │
+                       │  ┌────────▼────────┐   │
+                       │  │ Gemma 4 26B MoE │   │
+                       │  │ Streaming via   │   │
+                       │  │ Ollama · 8k ctx │   │
+                       │  └────────┬────────┘   │
+                       │           │             │
+                       └───────────┼─────────────┘
+                                   │
+                                   ▼
+                        Grounded Answer + Source Chunks
+                        (streamed token-by-token via SSE)
+```
+
+All pipeline spans are traced end-to-end in **LangSmith**:
+`supervisor → supervisor_route → tbi_retriever_subagent → vector_retrieval → mmr_filter → local_rerank → llm_generation`
 
 ## Quick Start
 
