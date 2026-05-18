@@ -23,28 +23,29 @@ from collections.abc import AsyncGenerator
 from langsmith import traceable, trace as ls_trace
 
 from llm_providers import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL
+from agents.skills.supervisor_skills import SKILLS, ROUTING_EXAMPLES
 
 logger = logging.getLogger(__name__)
 
-_ROUTING_SYSTEM = (
-    "You are a strict query classifier for GroundedMD, a TBI clinical evidence assistant.\n"
-    "Classify the user query into exactly one label and respond with ONLY valid JSON.\n\n"
-    "Labels:\n"
-    "  greeting      — any greeting, farewell, thanks, or purely social message\n"
-    "  tbi           — any question about traumatic brain injury, concussion, TBI biomarkers,\n"
-    "                  TBI treatment, neurorehabilitation, brain imaging, ICP, or related clinical topics\n"
-    "  out_of_domain — anything that is neither a greeting nor about TBI\n\n"
-    "Examples:\n"
-    '  user: "hello"           → {"label": "greeting"}\n'
-    '  user: "hi there"        → {"label": "greeting"}\n'
-    '  user: "thanks"          → {"label": "greeting"}\n'
-    '  user: "what is ICP monitoring in severe TBI?" → {"label": "tbi"}\n'
-    '  user: "what are TBI biomarkers?" → {"label": "tbi"}\n'
-    '  user: "what is kubernetes?"      → {"label": "out_of_domain"}\n'
-    '  user: "how do I cook pasta?"     → {"label": "out_of_domain"}\n'
-    '  user: "what is the weather?"     → {"label": "out_of_domain"}\n\n'
-    'Respond with ONLY JSON in this exact format: {"label": "greeting"} or {"label": "tbi"} or {"label": "out_of_domain"}'
-)
+def _build_routing_system() -> str:
+    caps = "\n".join(f"  - {c}" for c in SKILLS["capabilities"][:3])
+    examples = "\n".join(
+        f'  user: "{q}" → {{"label": "{label}"}}'
+        for q, label in ROUTING_EXAMPLES
+    )
+    return (
+        f"You are a strict query classifier for GroundedMD ({SKILLS['description']}).\n"
+        "Classify the user query into exactly one label and respond with ONLY valid JSON.\n\n"
+        "Labels:\n"
+        "  greeting      — any greeting, farewell, thanks, or purely social message\n"
+        "  tbi           — any question about traumatic brain injury, concussion, TBI biomarkers,\n"
+        "                  TBI treatment, neurorehabilitation, brain imaging, ICP, or related clinical topics\n"
+        "  out_of_domain — anything that is neither a greeting nor about TBI\n\n"
+        f"Examples:\n{examples}\n\n"
+        'Respond with ONLY JSON: {"label": "greeting"} or {"label": "tbi"} or {"label": "out_of_domain"}'
+    )
+
+_ROUTING_SYSTEM = _build_routing_system()
 
 
 @traceable(name="supervisor_route", run_type="chain")

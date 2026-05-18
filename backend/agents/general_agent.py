@@ -16,21 +16,12 @@ from collections.abc import AsyncGenerator
 from langsmith import traceable
 
 from llm_providers import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL
+from agents.skills.general_agent_skills import GREETING_SYSTEM, OUT_OF_DOMAIN_REPLY
 
 logger = logging.getLogger(__name__)
 
-_GREETING_SYSTEM = (
-    "You are GroundedMD, a clinical evidence assistant specialising in TBI (Traumatic Brain Injury). "
-    "The user has sent a greeting or social message. Reply warmly in 1-2 sentences maximum. "
-    "Do NOT list features or capabilities. End with a simple invitation to ask a TBI question. "
-    "Example: 'Hello! I'm GroundedMD, your TBI evidence assistant. What would you like to know about TBI?'"
-)
-
-_OUT_OF_DOMAIN_DECLINE = (
-    "Sorry, I can't help with that — I'm specialised exclusively in TBI "
-    "(Traumatic Brain Injury) research. Feel free to ask me about TBI biomarkers, "
-    "AI diagnostics, outcome prediction, neurorehabilitation, or clinical management."
-)
+_GREETING_SYSTEM = GREETING_SYSTEM
+_OUT_OF_DOMAIN_DECLINE = OUT_OF_DOMAIN_REPLY
 
 
 @traceable(name="general_subagent", run_type="llm")
