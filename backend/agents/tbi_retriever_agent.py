@@ -3,7 +3,7 @@ TBI Retriever subagent — handles clinical and research questions about TBI.
 
 Delegates to the full GraphRAG pipeline:
   vector similarity search → Cypher graph expansion → MMR diversity filter
-  → cross-encoder rerank → context assembly → Gemma 4 generation
+  → cross-encoder rerank → context assembly → Gemma 4 26B MoE generation
 
 All pipeline steps are streamed as SSE events so the UI shows live progress.
 LangSmith tracing: inherits the supervisor span via contextvars; the nested

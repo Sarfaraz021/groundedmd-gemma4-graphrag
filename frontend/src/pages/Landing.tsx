@@ -110,7 +110,7 @@ export default function Landing() {
             <span className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
             <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
             <span className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-            <span className="ml-3 text-xs text-muted-foreground font-mono">GroundedMD · Gemma 4 E4B · local-first</span>
+            <span className="ml-3 text-xs text-muted-foreground font-mono">GroundedMD · Gemma 4 26B MoE · local-first</span>
           </div>
           <div className="p-6 space-y-5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
             <div className="flex gap-3 text-sm">

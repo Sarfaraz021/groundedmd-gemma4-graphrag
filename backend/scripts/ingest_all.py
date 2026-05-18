@@ -4,7 +4,7 @@ Ingest all publications from backend/data/publications/ through the full pipelin
 Each PDF is processed sequentially:
   1. Docling OCR (IBM, EC2 GPU) — AI-powered document understanding
   2. Chunking + embedding (nomic-embed-text)
-  3. Entity extraction (Gemma 4)
+  3. Entity extraction (Gemma 4 26B MoE)
   4. Schema pruning + Neo4j write
   5. Entity resolution
 
@@ -37,7 +37,7 @@ async def warmup_ollama() -> None:
     """Send a tiny request to Ollama and wait until the model is fully loaded."""
     import os, httpx
     base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-    model = os.environ.get("OLLAMA_LLM_MODEL", "gemma4:e4b")
+    model = os.environ.get("OLLAMA_LLM_MODEL", "gemma4:26b")
     print(f"  Warming up Ollama ({model}) — waiting for model to load into GPU...")
     for attempt in range(30):
         try:

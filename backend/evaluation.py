@@ -73,7 +73,7 @@ async def judge_response(
     context_str: str | None = None,
 ) -> dict:
     """
-    Score a RAG response using Gemma 4 via Ollama as judge.
+    Score a RAG response using Gemma 4 26B MoE via Ollama as judge.
 
     Returns a dict with keys: faithfulness, completeness, relevance,
     context_quality (all int 0–10), reasoning (str), and overall (float avg).

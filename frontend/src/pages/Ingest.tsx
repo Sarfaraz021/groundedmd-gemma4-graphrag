@@ -320,7 +320,7 @@ export default function Ingest() {
             <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5 text-primary" /> Neo4j knowledge graph</div>
               <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-primary" /> Peer-reviewed TBI publications</div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Gemma 4 · 100% offline</div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Gemma 4 26B MoE · 100% offline</div>
             </div>
           </div>
         </section>

@@ -1,6 +1,9 @@
 """
-Model backend — Gemma 4 via Ollama + nomic-embed-text via Ollama.
-All models are served by the local Ollama daemon; no external API calls.
+Model backend — Gemma 4 26B MoE via Ollama + nomic-embed-text via Ollama.
+
+LLM: gemma4:26b — 25.8B parameter Mixture-of-Experts model (4B active per token),
+     Q4_K_M quantization, 256K context window, served on NVIDIA L40S 48 GB.
+Embeddings: nomic-embed-text — 768-D local embeddings, no external API calls.
 """
 
 import os
