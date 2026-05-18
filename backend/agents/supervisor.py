@@ -131,6 +131,9 @@ def _classify_query(query: str) -> str:
             resp.raise_for_status()
 
         raw = ((resp.json().get("message") or {}).get("content") or "").strip()
+        if not raw:
+            logger.debug("Supervisor: empty LLM response, defaulting to tbi")
+            return "tbi"
         parsed = _json.loads(raw)
         label = str(parsed.get("label", "tbi")).strip().lower()
 

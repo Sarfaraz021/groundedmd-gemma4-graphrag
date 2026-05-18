@@ -186,7 +186,7 @@ export default function ChatArea({
       const res = await apiFetch(`${API_BASE}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-        body: JSON.stringify({ message: trimmed, top_k: 15, pipeline_id: activePipelineId ?? null }),
+        body: JSON.stringify({ message: trimmed, top_k: 8, pipeline_id: activePipelineId ?? null }),
         signal,
       });
       console.log('[ChatArea] response status:', res.status);

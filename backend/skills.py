@@ -34,46 +34,15 @@ TBI_EVIDENCE_SKILL = Skill(
         "prediction, conformal prediction, and neurorehabilitation."
     ),
     guidance="""
-## Skill: TBI Evidence Interpretation
+## TBI Evidence Interpretation
 
-Apply the following standards when formulating your answer:
-
-### Classification Framework
-- Use standard TBI severity grades: Mild, Moderate, Severe.
-- Mild TBI (mTBI / concussion): GCS 13–15, LOC < 30 min, PTA < 24 h.
-- Moderate TBI: GCS 9–12, LOC 30 min – 24 h, PTA 1–7 days.
-- Severe TBI: GCS ≤ 8, LOC > 24 h, PTA > 7 days.
-- Cite the specific source publication when referencing these thresholds.
-
-### Biomarker Interpretation
-- Report biomarker values with units and validated threshold ranges.
-- Specify the time window of measurement (acute: 0–24 h; subacute: 1–7 days;
-  chronic: > 7 days) — sensitivity varies significantly by window.
-- Distinguish fluid-specific markers (blood/serum vs. CSF) and note
-  accessibility implications for clinical use.
-- Key markers: GFAP (astrocytic injury), UCH-L1 (neuronal injury),
-  NfL (axonal degeneration), S100B (early screening), p-tau (chronic/CTE).
-
-### Imaging Evidence
-- Differentiate CT (structural, acute haemorrhage) from MRI
-  (diffuse axonal injury, subacute findings).
-- Reference the imaging criteria from the source publications when classifying
-  imaging-based severity.
-- Note that CT-negative does not exclude mTBI — correlate with clinical
-  and biomarker data.
-
-### Clinical Symptom Reporting
-- Report symptom timelines relative to injury (Day 1–14 framework).
-- Distinguish acute (< 72 h), subacute (3–14 days), and persistent (> 14 days)
-  symptom profiles.
-- Flag psychosocial and environmental modifiers that influence recovery.
-
-### Evidence Strength Language
-- Use precise language that reflects evidence quality:
-  - "Established" — consensus-level evidence in the source documents.
-  - "Emerging" — referenced but not yet consensus.
-  - "Insufficient evidence" — explicitly noted in the source documents.
-- Never infer evidence strength not stated in the retrieved context.
+- Use standard severity grades: Mild (GCS 13–15), Moderate (GCS 9–12), Severe (GCS ≤ 8).
+- Report biomarker values with units, time window (acute/subacute/chronic), and fluid type.
+- Key markers: GFAP, UCH-L1, NfL, S100B, p-tau — cite thresholds from the source chunks.
+- Differentiate CT (structural/acute) from MRI (axonal injury/subacute).
+- Use evidence-strength language: "Established", "Emerging", or "Insufficient evidence".
+- Cite each claim with [n] referring to the chunk number.
+- If the retrieved context does not contain the answer, say so explicitly — do not guess.
 """,
 )
 

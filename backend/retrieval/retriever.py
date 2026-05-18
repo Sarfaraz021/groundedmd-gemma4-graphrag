@@ -421,79 +421,85 @@ async def search_stream_events(
     import httpx
     import json as _json
 
-    _GENERATION_TIMEOUT = 240   # seconds before we give up
-    _HEARTBEAT_INTERVAL = 8     # seconds between heartbeat ticks while waiting for first token
+    _GENERATION_TIMEOUT = 240   # total seconds before giving up
+    _HEARTBEAT_INTERVAL = 8     # seconds between heartbeat pulses
 
-    async def _stream_tokens():
-        """Yield (type, payload) tuples from Ollama streaming API."""
+    # Use an asyncio.Queue + background task so timeouts on queue.get()
+    # never cancel the underlying HTTP stream (unlike asyncio.wait_for on __anext__).
+    _SENTINEL_DONE  = object()
+    _SENTINEL_ERROR = object()
+
+    token_queue: asyncio.Queue = asyncio.Queue()
+
+    async def _producer():
         base = (OLLAMA_BASE_URL or "").rstrip("/")
-        timeout_cfg = httpx.Timeout(connect=10, read=120, write=30, pool=5)
-        async with httpx.AsyncClient(timeout=timeout_cfg) as client:
-            async with client.stream(
-                "POST",
-                f"{base}/api/chat",
-                json={
-                    "model": OLLAMA_LLM_MODEL,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": True,
-                    "options": {"temperature": 0, "num_ctx": 32768},
-                },
-            ) as resp:
-                resp.raise_for_status()
-                async for raw_line in resp.aiter_lines():
-                    if not raw_line.strip():
-                        continue
-                    try:
-                        chunk = _json.loads(raw_line)
-                    except Exception:
-                        continue
-                    token = (chunk.get("message") or {}).get("content") or ""
-                    if token:
-                        yield token
-                    if chunk.get("done"):
-                        return
+        timeout_cfg = httpx.Timeout(connect=10, read=300, write=30, pool=5)
+        try:
+            async with httpx.AsyncClient(timeout=timeout_cfg) as client:
+                async with client.stream(
+                    "POST",
+                    f"{base}/api/chat",
+                    json={
+                        "model": OLLAMA_LLM_MODEL,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "stream": True,
+                        "options": {"temperature": 0, "num_ctx": 8192},
+                    },
+                ) as resp:
+                    resp.raise_for_status()
+                    async for raw_line in resp.aiter_lines():
+                        if not raw_line.strip():
+                            continue
+                        try:
+                            chunk = _json.loads(raw_line)
+                        except Exception:
+                            continue
+                        token = (chunk.get("message") or {}).get("content") or ""
+                        if token:
+                            await token_queue.put(("token", token))
+                        if chunk.get("done"):
+                            break
+            await token_queue.put((_SENTINEL_DONE, None))
+        except Exception as exc:
+            await token_queue.put((_SENTINEL_ERROR, str(exc)))
+
+    producer_task = asyncio.create_task(_producer())
 
     answer_tokens: list[str] = []
-    first_token_received = False
     generation_error: str | None = None
+    deadline = asyncio.get_event_loop().time() + _GENERATION_TIMEOUT
 
     try:
-        token_gen = _stream_tokens()
-        deadline = asyncio.get_event_loop().time() + _GENERATION_TIMEOUT
-        next_heartbeat = asyncio.get_event_loop().time() + _HEARTBEAT_INTERVAL
-
         while True:
-            now = asyncio.get_event_loop().time()
-            if now >= deadline:
+            remaining = deadline - asyncio.get_event_loop().time()
+            if remaining <= 0:
                 generation_error = "Generation timed out after 240 s — model may be overloaded."
+                producer_task.cancel()
                 break
 
-            # Heartbeat while waiting for first token
-            if not first_token_received and now >= next_heartbeat:
-                yield {"type": "heartbeat", "message": "Model is generating…"}
-                next_heartbeat = now + _HEARTBEAT_INTERVAL
-
-            # Try to get next token with a short wait so heartbeats can fire
             try:
-                token = await asyncio.wait_for(token_gen.__anext__(), timeout=_HEARTBEAT_INTERVAL)
-                answer_tokens.append(token)
-                first_token_received = True
-                yield {"type": "token", "token": token}
-            except StopAsyncIteration:
-                break
+                kind, value = await asyncio.wait_for(
+                    token_queue.get(),
+                    timeout=min(_HEARTBEAT_INTERVAL, remaining),
+                )
             except asyncio.TimeoutError:
-                # No token yet — loop back to check deadline and send heartbeat
+                yield {"type": "heartbeat", "message": "Model is generating…"}
                 continue
 
-    except Exception as exc:
-        generation_error = str(exc)
-        logger.warning("Token streaming failed: %s", exc)
+            if kind is _SENTINEL_DONE:
+                break
+            if kind is _SENTINEL_ERROR:
+                generation_error = str(value)
+                break
+            # kind == "token"
+            answer_tokens.append(value)
+            yield {"type": "token", "token": value}
+    finally:
+        if not producer_task.done():
+            producer_task.cancel()
 
     if generation_error and not answer_tokens:
-        yield {
-            "type": "error",
-            "message": f"Generation failed: {generation_error}",
-        }
+        yield {"type": "error", "message": f"Generation failed: {generation_error}"}
         return
 
     answer = "".join(answer_tokens).strip()
