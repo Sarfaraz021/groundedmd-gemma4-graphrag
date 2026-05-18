@@ -27,16 +27,23 @@ from llm_providers import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL
 logger = logging.getLogger(__name__)
 
 _ROUTING_SYSTEM = (
-    "You are a strict query classifier for GroundedMD, a TBI clinical evidence assistant. "
-    "Classify the user query into exactly one of three categories and reply with ONLY that word.\n\n"
-    "Categories:\n"
-    "  greeting      — greetings, farewells, thanks, or any other purely social message "
-    "(e.g. 'hello', 'hi', 'hey', 'thanks', 'bye', 'ok', 'great')\n"
-    "  tbi           — any question about traumatic brain injury, TBI biomarkers, TBI treatments, "
-    "TBI outcomes, neurorehabilitation, brain imaging, concussion, or related clinical/research topics\n"
-    "  out_of_domain — any question that is neither a greeting nor about TBI "
-    "(e.g. cooking, sports, politics, general science, coding, weather, other medical conditions)\n\n"
-    "Reply with ONLY one word: greeting   OR   tbi   OR   out_of_domain"
+    "You are a strict query classifier for GroundedMD, a TBI clinical evidence assistant.\n"
+    "Classify the user query into exactly one label and respond with ONLY valid JSON.\n\n"
+    "Labels:\n"
+    "  greeting      — any greeting, farewell, thanks, or purely social message\n"
+    "  tbi           — any question about traumatic brain injury, concussion, TBI biomarkers,\n"
+    "                  TBI treatment, neurorehabilitation, brain imaging, ICP, or related clinical topics\n"
+    "  out_of_domain — anything that is neither a greeting nor about TBI\n\n"
+    "Examples:\n"
+    '  user: "hello"           → {"label": "greeting"}\n'
+    '  user: "hi there"        → {"label": "greeting"}\n'
+    '  user: "thanks"          → {"label": "greeting"}\n'
+    '  user: "what is ICP monitoring in severe TBI?" → {"label": "tbi"}\n'
+    '  user: "what are TBI biomarkers?" → {"label": "tbi"}\n'
+    '  user: "what is kubernetes?"      → {"label": "out_of_domain"}\n'
+    '  user: "how do I cook pasta?"     → {"label": "out_of_domain"}\n'
+    '  user: "what is the weather?"     → {"label": "out_of_domain"}\n\n'
+    'Respond with ONLY JSON in this exact format: {"label": "greeting"} or {"label": "tbi"} or {"label": "out_of_domain"}'
 )
 
 
@@ -44,16 +51,18 @@ _ROUTING_SYSTEM = (
 def _classify_query(query: str) -> str:
     """
     Classify query into 'greeting', 'tbi', or 'out_of_domain'.
+    Uses JSON format mode to force structured output — avoids thinking-token cutoff issues.
     Falls back to 'tbi' on any error so clinical queries are never dropped.
     """
-    try:
-        import httpx
+    import json as _json
+    import httpx
 
+    try:
         base = (OLLAMA_BASE_URL or "").rstrip("/")
         if not base:
             return "tbi"
 
-        with httpx.Client(timeout=15.0) as client:
+        with httpx.Client(timeout=20.0) as client:
             resp = client.post(
                 f"{base}/api/chat",
                 json={
@@ -63,18 +72,17 @@ def _classify_query(query: str) -> str:
                         {"role": "user", "content": query},
                     ],
                     "stream": False,
-                    "options": {"temperature": 0, "num_predict": 10},
+                    "format": "json",
+                    "options": {"temperature": 0, "num_predict": 50},
                 },
             )
             resp.raise_for_status()
 
-        raw = ((resp.json().get("message") or {}).get("content") or "").strip().lower()
+        raw = ((resp.json().get("message") or {}).get("content") or "").strip()
+        parsed = _json.loads(raw)
+        label = str(parsed.get("label", "tbi")).strip().lower()
 
-        if "out_of_domain" in raw or "out of domain" in raw:
-            label = "out_of_domain"
-        elif "greeting" in raw:
-            label = "greeting"
-        else:
+        if label not in ("greeting", "tbi", "out_of_domain"):
             label = "tbi"
 
         logger.debug("Supervisor: '%s…' → %s (raw=%r)", query[:60], label, raw)

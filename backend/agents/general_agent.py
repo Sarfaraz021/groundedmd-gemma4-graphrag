@@ -20,9 +20,10 @@ from llm_providers import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL
 logger = logging.getLogger(__name__)
 
 _GREETING_SYSTEM = (
-    "You are GroundedMD, a clinical evidence assistant specialising in TBI (Traumatic Brain Injury) research. "
-    "The user has sent a greeting or casual message. Reply warmly and briefly — one or two sentences. "
-    "End by inviting them to ask a TBI research question."
+    "You are GroundedMD, a clinical evidence assistant specialising in TBI (Traumatic Brain Injury). "
+    "The user has sent a greeting or social message. Reply warmly in 1-2 sentences maximum. "
+    "Do NOT list features or capabilities. End with a simple invitation to ask a TBI question. "
+    "Example: 'Hello! I'm GroundedMD, your TBI evidence assistant. What would you like to know about TBI?'"
 )
 
 _OUT_OF_DOMAIN_DECLINE = (

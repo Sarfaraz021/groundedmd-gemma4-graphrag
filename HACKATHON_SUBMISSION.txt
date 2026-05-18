@@ -1,0 +1,176 @@
+GroundedMD: Evidence-Grounded TBI Clinical Q&A Powered by Gemma 4 26B MoE
+==========================================================================
+
+GitHub Repository: https://github.com/Sarfaraz021/groundedmd-gemma4-graphrag
+Demo Video: [YOUTUBE PLACEHOLDER — ADD BEFORE SUBMISSION]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THE PROBLEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Traumatic Brain Injury (TBI) is a leading cause of death and disability worldwide,
+affecting over 69 million people annually. Clinicians, researchers, and caregivers
+navigating TBI literature face a fundamental challenge: medical evidence is buried
+in dense academic PDFs, scattered across dozens of publications, with no fast and
+trustworthy way to query it.
+
+General-purpose LLMs are dangerous in this context. They hallucinate confidently,
+cite studies that don't exist, and mix training knowledge with retrieved facts in
+ways that are impossible to audit. In clinical settings, an ungrounded answer is
+worse than no answer at all.
+
+GroundedMD was built to solve this. It is a fully local, evidence-grounded question
+answering system for TBI clinical literature — every claim it makes is traceable
+to a specific chunk from a real document in its knowledge base.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THE SOLUTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GroundedMD combines a Knowledge Graph (Neo4j), vector similarity search, and Gemma 4
+26B MoE — all served locally via Ollama — into a single streaming Q&A pipeline with
+an agentic supervisor layer.
+
+The system ingests TBI research publications (PDFs) through a multi-stage pipeline:
+AI-powered document extraction via IBM's Docling OCR, semantic chunking, embedding
+generation with nomic-embed-text, entity extraction, and knowledge graph construction
+in Neo4j Aura. At query time, the GraphRAG retrieval pipeline combines vector
+similarity, Cypher graph traversal, Maximum Marginal Relevance diversity filtering,
+and cross-encoder reranking to surface the most relevant evidence chunks before
+passing them to Gemma 4 for grounded generation.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GEMMA 4 26B MoE — THE HEART OF THE SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Gemma 4 26B MoE is not a conventional 26B model. It is a Mixture-of-Experts
+architecture: 25.8 billion total parameters, but only ~4 billion are active per
+token forward pass. This gives it the reasoning depth of a large model at the
+inference cost of a small one.
+
+Key properties that make it ideal for GroundedMD:
+
+- 262,144 token context window — large enough to hold entire clinical case summaries,
+  full document sections, and multi-chunk retrieved evidence in a single inference call
+- Q4_K_M quantization — fits in ~17 GB of VRAM on an NVIDIA L40S (48 GB), leaving
+  ~29 GB free for KV cache at 32,768 context length
+- Instruction-following precision — with an explicit ABSOLUTE RULE prompt structure,
+  the model reliably refuses to answer beyond the retrieved evidence, eliminating
+  hallucination in the clinical domain
+- JSON format mode — used for both entity extraction during ingestion and LLM-as-Judge
+  evaluation scoring, enabling structured multi-step pipelines without output parsing
+  fragility
+
+Gemma 4 26B MoE is deployed on an AWS g6e.xlarge instance (NVIDIA L40S 48 GB VRAM)
+via Ollama, making the entire inference stack local and private. No patient query
+ever leaves the deployment environment to a third-party API.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNICAL ARCHITECTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INGESTION PIPELINE (offline, one-time per document)
+1. Docling OCR (IBM) — AI-powered PDF parsing with table and figure awareness
+2. Semantic chunking — overlapping windows preserving sentence boundaries
+3. nomic-embed-text — 768-dimensional local embeddings via Ollama
+4. Gemma 4 26B MoE (JSON mode) — entity and relationship extraction
+5. Schema pruning + Neo4j write — nodes and edges stored with vector index
+6. Entity resolution — deduplication across publications
+
+QUERY PIPELINE (real-time, streaming)
+1. Supervisor Agent — classifies query: greeting / TBI clinical / out-of-domain
+2. TBI Retriever Subagent → GraphRAG pipeline:
+   a. Vector similarity search (nomic-embed-text cosine, top-K candidates)
+   b. Cypher graph expansion (Neo4j — traverse entity relationships)
+   c. MMR diversity filter (reduce redundancy across chunks)
+   d. Cross-encoder reranking (precision re-scoring)
+   e. Context assembly (chunks merged with source metadata)
+   f. Gemma 4 26B MoE generation (ABSOLUTE RULE prompt, 32K ctx)
+3. General Subagent — warm greetings via Gemma 4; instant hardcoded decline for OOD
+
+OBSERVABILITY
+All pipeline steps are traced end-to-end in LangSmith with a supervisor root span
+and nested child spans: supervisor_route → tbi_retriever_subagent → vector_retrieval
+→ mmr_filter → local_rerank → llm_generation. Every production query is auditable.
+
+STREAMING UX
+The FastAPI backend emits Server-Sent Events at each pipeline step. The React
+frontend shows live progress: "Searching knowledge base... Expanding graph...
+Reranking... Generating answer..." Users see the system thinking, not a spinner.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHY OLLAMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ollama is the backbone of GroundedMD's inference stack. Three separate model roles
+are served through a single Ollama daemon on the EC2 instance:
+
+1. nomic-embed-text — generates embeddings at ingestion and query time
+2. gemma4:26b — generates grounded clinical answers (32K ctx, temperature 0)
+3. gemma4:26b (JSON mode) — extracts entities during ingestion; used as LLM-as-Judge
+   for response quality evaluation (faithfulness, completeness, relevance, context quality)
+
+Ollama's /api/chat endpoint with `"format": "json"` and `"stream": false` makes
+structured multi-role pipelines trivially composable. The same model serves as
+reader, writer, extractor, and judge — unified through a single local API. There are
+no external API keys, no network data egress, and no per-token billing.
+
+This architecture enables GroundedMD to run in air-gapped environments — exactly
+the deployment model required by healthcare institutions with strict data governance.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REAL-WORLD IMPACT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TBI clinical decision support is one of the highest-stakes applications of AI in
+medicine. The evidence base is large (thousands of publications), fast-moving (new
+trials published weekly), and fragmented across neurology, neurosurgery, emergency
+medicine, and rehabilitation. No clinician can read it all.
+
+GroundedMD changes what is possible:
+
+For clinicians: "What is the evidence for intracranial pressure monitoring thresholds
+in severe TBI?" returns an answer citing exact chunks from the uploaded literature —
+not a hallucinated synthesis from pre-training. Each answer is auditable.
+
+For researchers: The knowledge graph reveals entity relationships across publications
+automatically — which interventions co-occur with which outcomes, which patient
+populations are underrepresented — without manual extraction.
+
+For patients and caregivers: Accessible natural language Q&A over clinical literature,
+grounded in real evidence, replaces the impossible task of reading and synthesizing
+dozens of academic papers independently.
+
+The architecture is deliberately domain-agnostic: swap the TBI publication corpus for
+oncology, cardiology, or rare disease literature and the entire stack runs unchanged.
+GroundedMD is a blueprint for trustworthy clinical AI at any scale.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECH STACK SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LLM:         Gemma 4 26B MoE (Q4_K_M) via Ollama — local, private, no API key
+Embeddings:  nomic-embed-text 768-D via Ollama
+Graph DB:    Neo4j Aura (cloud) with vector index + Cypher traversal
+OCR:         IBM Docling (AI-powered PDF understanding, table-aware)
+Backend:     Python / FastAPI / SSE streaming
+Frontend:    React / TypeScript / Tailwind CSS
+Observability: LangSmith (end-to-end pipeline tracing)
+Infrastructure: AWS g6e.xlarge (NVIDIA L40S 48 GB VRAM)
+Framework:   neo4j-graphrag-python (VectorCypherRetriever)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TRACKS TARGETED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Main Track — novel application of Gemma 4 with clear technical depth and real-world
+deployment on production GPU infrastructure.
+
+Health & Sciences Impact Track — direct application to TBI clinical evidence synthesis,
+a high-stakes domain where grounded AI can meaningfully improve clinical decisions.
+
+Ollama Special Technology Track — Ollama is the core inference runtime for all three
+model roles (embeddings, generation, evaluation); the entire stack runs locally
+through a single Ollama daemon with no external model APIs.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
