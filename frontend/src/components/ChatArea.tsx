@@ -233,6 +233,17 @@ export default function ChatArea({
                   detail: String(evt.detail ?? ''),
                 },
               ]);
+            } else if (t === 'heartbeat') {
+              // Model still generating — update the last pipeline step detail so user sees activity
+              setPipelineSteps((prev) => {
+                if (!prev.length) return prev;
+                const updated = [...prev];
+                const last = { ...updated[updated.length - 1] };
+                const dots = ((last.detail.match(/\.+$/) ?? [''])[0].length % 3) + 1;
+                last.detail = last.detail.replace(/\.+$/, '') + '.'.repeat(dots);
+                updated[updated.length - 1] = last;
+                return updated;
+              });
             } else if (t === 'token') {
               // Live token streaming — switch to streaming phase on first token
               if (!resultReceived) {

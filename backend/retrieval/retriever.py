@@ -407,8 +407,10 @@ async def search_stream_events(
     }
     await asyncio.sleep(0)
 
-    # Stream tokens directly from Ollama so the UI shows live text immediately.
-    # Falls back to blocking invoke() if streaming fails.
+    # Stream tokens directly from Ollama so the UI shows live text as it generates.
+    # Sends a heartbeat event every 8 s while waiting for the first token so the
+    # frontend knows the model is still processing (not frozen).
+    # Hard timeout: 240 s total — returns an error event instead of hanging forever.
     source_chunks = _parse_chunks(retriever_result)
     prompt = graph_rag.prompt_template.format(
         query_text=query,
@@ -416,12 +418,17 @@ async def search_stream_events(
         examples=skill_context,
     )
 
-    answer_tokens: list[str] = []
-    streamed_ok = False
-    try:
-        import httpx, json as _json
+    import httpx
+    import json as _json
+
+    _GENERATION_TIMEOUT = 240   # seconds before we give up
+    _HEARTBEAT_INTERVAL = 8     # seconds between heartbeat ticks while waiting for first token
+
+    async def _stream_tokens():
+        """Yield (type, payload) tuples from Ollama streaming API."""
         base = (OLLAMA_BASE_URL or "").rstrip("/")
-        async with httpx.AsyncClient(timeout=300) as client:
+        timeout_cfg = httpx.Timeout(connect=10, read=120, write=30, pool=5)
+        async with httpx.AsyncClient(timeout=timeout_cfg) as client:
             async with client.stream(
                 "POST",
                 f"{base}/api/chat",
@@ -442,22 +449,54 @@ async def search_stream_events(
                         continue
                     token = (chunk.get("message") or {}).get("content") or ""
                     if token:
-                        answer_tokens.append(token)
-                        yield {"type": "token", "token": token}
+                        yield token
                     if chunk.get("done"):
-                        break
-        streamed_ok = True
+                        return
+
+    answer_tokens: list[str] = []
+    first_token_received = False
+    generation_error: str | None = None
+
+    try:
+        token_gen = _stream_tokens()
+        deadline = asyncio.get_event_loop().time() + _GENERATION_TIMEOUT
+        next_heartbeat = asyncio.get_event_loop().time() + _HEARTBEAT_INTERVAL
+
+        while True:
+            now = asyncio.get_event_loop().time()
+            if now >= deadline:
+                generation_error = "Generation timed out after 240 s — model may be overloaded."
+                break
+
+            # Heartbeat while waiting for first token
+            if not first_token_received and now >= next_heartbeat:
+                yield {"type": "heartbeat", "message": "Model is generating…"}
+                next_heartbeat = now + _HEARTBEAT_INTERVAL
+
+            # Try to get next token with a short wait so heartbeats can fire
+            try:
+                token = await asyncio.wait_for(token_gen.__anext__(), timeout=_HEARTBEAT_INTERVAL)
+                answer_tokens.append(token)
+                first_token_received = True
+                yield {"type": "token", "token": token}
+            except StopAsyncIteration:
+                break
+            except asyncio.TimeoutError:
+                # No token yet — loop back to check deadline and send heartbeat
+                continue
+
     except Exception as exc:
-        logger.warning("Streaming generation failed (%s) — falling back to blocking invoke", exc)
+        generation_error = str(exc)
+        logger.warning("Token streaming failed: %s", exc)
 
-    if streamed_ok:
-        answer = "".join(answer_tokens).strip()
-    else:
-        answer = await asyncio.to_thread(
-            _llm_generation, graph_rag, query, context, skill_context
-        )
-        answer = (answer or "").strip()
+    if generation_error and not answer_tokens:
+        yield {
+            "type": "error",
+            "message": f"Generation failed: {generation_error}",
+        }
+        return
 
+    answer = "".join(answer_tokens).strip()
     yield {
         "type": "result",
         "answer": answer,
