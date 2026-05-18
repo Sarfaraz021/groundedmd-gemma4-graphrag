@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { EvalScores, SourceChunk } from '@/lib/types';
+import type { SourceChunk } from '@/lib/types';
 import {
   Send,
   Paperclip,
@@ -18,7 +18,6 @@ import {
   PackageOpen,
 } from 'lucide-react';
 import { AssistantMarkdown } from '@/components/AssistantMarkdown';
-import EvalScoresCard from '@/components/EvalScoresCard';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { apiFetch, API_BASE } from '@/lib/api';
 import type { ChatSession, ChatMessage, PipelineStep } from '@/lib/types';
@@ -109,8 +108,6 @@ export default function ChatArea({
     }
   };
 
-  const pendingEvalRef = useRef<EvalScores | null>(null);
-
   /** Reveal answer word-by-word for a smooth, readable stream. */
   const streamAnswerText = useCallback(
     (fullText: string, sessionId: string, sourceChunks: SourceChunk[] | undefined, retrievedContext?: string) => {
@@ -131,9 +128,7 @@ export default function ChatArea({
             timestamp: new Date(),
             sourceChunks,
             retrievedContext,
-            evalScores: pendingEvalRef.current ?? undefined,
           };
-          pendingEvalRef.current = null;
           onSendMessage(sessionId, msg);
           return;
         }
@@ -245,16 +240,6 @@ export default function ChatArea({
               setPhase('streaming');
               setStreamingText('');
               streamAnswerText(answer, sid!, chunks, retrievedContext);
-              // Don't return — keep reading for the evaluation event
-            } else if (t === 'evaluation') {
-              pendingEvalRef.current = {
-                faithfulness:    Number(evt.faithfulness    ?? -1),
-                completeness:    Number(evt.completeness    ?? -1),
-                relevance:       Number(evt.relevance       ?? -1),
-                context_quality: Number(evt.context_quality ?? -1),
-                overall:         Number(evt.overall         ?? -1),
-                reasoning:       String(evt.reasoning       ?? ''),
-              };
             } else if (t === 'error') {
               throw new Error(String(evt.message ?? 'Stream error'));
             }
@@ -621,8 +606,7 @@ function MessageRow({ message }: { message: ChatMessage }) {
           ) : (
             <div className="break-words" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
               <AssistantMarkdown content={message.content} />
-              {message.evalScores && <EvalScoresCard scores={message.evalScores} />}
-            </div>
+              </div>
           )}
           {!isUser && chunks.length > 0 && (
             <Collapsible className="mt-4 border border-border bg-background/50">
@@ -652,19 +636,6 @@ function MessageRow({ message }: { message: ChatMessage }) {
                     </li>
                   ))}
                 </ul>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-          {!isUser && retrievedContext && (
-            <Collapsible className="mt-2 border border-border bg-background/50">
-              <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hover:bg-muted/30 transition-colors">
-                <span>LLM context ({retrievedContext.length.toLocaleString()} chars)</span>
-                <ChevronDown className="w-4 h-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="border-t border-border">
-                <pre className="max-h-[500px] overflow-y-auto px-3 py-3 text-[10px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-words font-mono">
-                  {retrievedContext}
-                </pre>
               </CollapsibleContent>
             </Collapsible>
           )}

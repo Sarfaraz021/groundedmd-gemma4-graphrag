@@ -206,22 +206,27 @@ async def chat(
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
     try:
-        from retrieval.retriever import search
+        from agents.supervisor import supervisor_stream_events
 
-        result = await search(
+        answer = ""
+        source_chunks_raw: list[dict] = []
+        async for event in supervisor_stream_events(
             graph_rag=graph_rag,
             query=body.message,
             top_k=body.top_k,
             owner_user_id=owner_user_id,
             pipeline_id=body.pipeline_id,
-        )
+        ):
+            if event.get("type") == "result":
+                answer = event.get("answer", "")
+                source_chunks_raw = event.get("source_chunks", [])
     except Exception as exc:
         logger.error("Chat error: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while processing your request.")
 
     return ChatResponse(
-        answer=result["answer"],
-        source_chunks=[SourceChunk(**c) for c in result["source_chunks"]],
+        answer=answer,
+        source_chunks=[SourceChunk(**c) for c in source_chunks_raw],
         session_id=body.session_id,
     )
 
@@ -241,11 +246,11 @@ async def chat_stream(
     if not body.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
-    from retrieval.retriever import search_stream_events
+    from agents.supervisor import supervisor_stream_events
 
     async def event_generator():
         try:
-            async for event in search_stream_events(
+            async for event in supervisor_stream_events(
                 graph_rag=graph_rag,
                 query=body.message,
                 top_k=body.top_k,
