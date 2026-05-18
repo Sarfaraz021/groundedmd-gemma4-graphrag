@@ -74,6 +74,8 @@ export default function ChatArea({
   const [urlInputOpen, setUrlInputOpen] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
+  const phaseRef = useRef<Phase>('idle');
+  const setPhaseTracked = (p: Phase) => { phaseRef.current = p; setPhase(p); };
   const [streamingText, setStreamingText] = useState('');
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [streamError, setStreamError] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export default function ChatArea({
       const step = () => {
         if (i >= parts.length) {
           streamTimerRef.current = null;
-          setPhase('idle');
+          setPhaseTracked('idle');
           setStreamingText('');
           setPipelineSteps([]);
           const msg: ChatMessage = {
@@ -176,7 +178,7 @@ export default function ChatArea({
     abortRef.current = new AbortController();
     const signal = abortRef.current.signal;
 
-    setPhase('retrieving');
+    setPhaseTracked('retrieving');
     setStreamingText('');
 
     try {
@@ -231,15 +233,40 @@ export default function ChatArea({
                   detail: String(evt.detail ?? ''),
                 },
               ]);
+            } else if (t === 'token') {
+              // Live token streaming — switch to streaming phase on first token
+              if (!resultReceived) {
+                setPhaseTracked('streaming');
+                setStreamingText('');
+              }
+              resultReceived = true;
+              const token = String(evt.token ?? '');
+              setStreamingText((prev) => prev + token);
             } else if (t === 'result') {
               const answer = String(evt.answer ?? '').trim();
               const chunks = parseSourceChunks(evt.source_chunks);
               const retrievedContext = typeof evt.context === 'string' ? evt.context : undefined;
               if (signal.aborted) return;
               resultReceived = true;
-              setPhase('streaming');
-              setStreamingText('');
-              streamAnswerText(answer, sid!, chunks, retrievedContext);
+              if (phaseRef.current === 'streaming') {
+                // Tokens already displayed — just finalise with source chunks
+                onSendMessage(sid!, {
+                  id: crypto.randomUUID(),
+                  role: 'assistant',
+                  content: answer,
+                  timestamp: new Date(),
+                  sourceChunks: chunks,
+                  retrievedContext,
+                });
+                setPhaseTracked('idle');
+                setStreamingText('');
+                setPipelineSteps([]);
+              } else {
+                // No tokens received (greeting/OOD path or fallback) — use character stream
+                setPhaseTracked('streaming');
+                setStreamingText('');
+                streamAnswerText(answer, sid!, chunks, retrievedContext);
+              }
             } else if (t === 'error') {
               throw new Error(String(evt.message ?? 'Stream error'));
             }
@@ -254,7 +281,7 @@ export default function ChatArea({
       const msg = e instanceof Error ? e.message : 'Network error';
       console.error('[ChatArea] stream error:', e);
       setStreamError(msg);
-      setPhase('idle');
+      setPhaseTracked('idle');
       setStreamingText('');
       setPipelineSteps([]);
       onSendMessage(sid!, {

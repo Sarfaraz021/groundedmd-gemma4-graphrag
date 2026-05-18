@@ -25,7 +25,7 @@ from neo4j_graphrag.types import RetrieverResultItem
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from llm_providers import OLLAMA_LLM_MODEL, build_embedder, build_llm, get_embed_model_name, get_embedding_dimensions
+from llm_providers import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, build_embedder, build_llm, get_embed_model_name, get_embedding_dimensions
 from prompts import GRAPH_RETRIEVAL_QUERY, RAG_PROMPT
 from skills import get_skill_context
 
@@ -403,23 +403,64 @@ async def search_stream_events(
         "type": "step",
         "phase": "llm",
         "title": "Answer generation",
-        "detail": "Grounded completion with inline [n] citations (skill + RAG prompt)",
+        "detail": f"Streaming grounded completion · {OLLAMA_LLM_MODEL} · inline [n] citations",
     }
     await asyncio.sleep(0)
 
-    answer = await asyncio.to_thread(
-        _llm_generation,
-        graph_rag,
-        query,
-        context,
-        skill_context,
+    # Stream tokens directly from Ollama so the UI shows live text immediately.
+    # Falls back to blocking invoke() if streaming fails.
+    source_chunks = _parse_chunks(retriever_result)
+    prompt = graph_rag.prompt_template.format(
+        query_text=query,
+        context=context,
+        examples=skill_context,
     )
 
-    source_chunks = _parse_chunks(retriever_result)
+    answer_tokens: list[str] = []
+    streamed_ok = False
+    try:
+        import httpx, json as _json
+        base = (OLLAMA_BASE_URL or "").rstrip("/")
+        async with httpx.AsyncClient(timeout=300) as client:
+            async with client.stream(
+                "POST",
+                f"{base}/api/chat",
+                json={
+                    "model": OLLAMA_LLM_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": True,
+                    "options": {"temperature": 0, "num_ctx": 32768},
+                },
+            ) as resp:
+                resp.raise_for_status()
+                async for raw_line in resp.aiter_lines():
+                    if not raw_line.strip():
+                        continue
+                    try:
+                        chunk = _json.loads(raw_line)
+                    except Exception:
+                        continue
+                    token = (chunk.get("message") or {}).get("content") or ""
+                    if token:
+                        answer_tokens.append(token)
+                        yield {"type": "token", "token": token}
+                    if chunk.get("done"):
+                        break
+        streamed_ok = True
+    except Exception as exc:
+        logger.warning("Streaming generation failed (%s) — falling back to blocking invoke", exc)
+
+    if streamed_ok:
+        answer = "".join(answer_tokens).strip()
+    else:
+        answer = await asyncio.to_thread(
+            _llm_generation, graph_rag, query, context, skill_context
+        )
+        answer = (answer or "").strip()
 
     yield {
         "type": "result",
-        "answer": (answer or "").strip(),
+        "answer": answer,
         "source_chunks": source_chunks,
         "context": context,
     }
