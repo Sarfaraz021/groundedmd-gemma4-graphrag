@@ -312,13 +312,14 @@ async def search_stream_events(
     top_k: int = TOP_K,
     owner_user_id: str | None = None,
     pipeline_id: str | None = None,
+    skill_context_override: str | None = None,
 ) -> AsyncGenerator[dict, None]:
     """
     Stream logical pipeline steps for the UI (embedding → vector + graph → context → LLM → result).
 
     Vector search and Cypher graph expansion run in a single retriever call; steps describe that work.
     """
-    skill_context = get_skill_context(skill_name)
+    skill_context = skill_context_override if skill_context_override else get_skill_context(skill_name)
     fetch_k = top_k * _MMR_FETCH_MULT
 
     yield {
